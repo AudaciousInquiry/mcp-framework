@@ -15,6 +15,17 @@ created:
     Initial proposal for mcp-framework CR, from investigation of three existing
     MCP servers
 updated:
+  - date: '2026-11-18T14:07:09.658Z'
+    user: boonek
+    agent:
+      name: claude-code
+      version: 2.x
+    llm:
+      name: claude-sonnet-5-5
+      version: '5.5'
+    prompt_uri: >-
+      prompt:/claude-code/d670cca5-e0f3-47c9-b239-7d358eabbeb6/~e148b5d8-e4eb-4d94-abe8-9e4b485b264f
+    summary: 'Proposal: argument mapping also covers init'
   - date: '2026-11-18T10:36:55.811Z'
     user: boonek
     agent:
@@ -84,7 +95,7 @@ server behaves the same way when started, stopped, restarted, or recovered after
   the daemon if needed; respawns and reconnects when the daemon dies without dropping the client.
 - `cli-client`: `health`, `list`, and `call` subcommands against a running server, including
   whole-argument JSON from a file, without starting the server as a side effect.
-- `cli-argument-mapping`: lets `call` take ordinary command-line arguments instead of only JSON. The
+- `cli-argument-mapping`: lets `call` (and `init`, for configuration settings) take ordinary command-line arguments instead of only JSON. The
   arguments are converted to the types the tool's own input schema declares (strings, numbers,
   booleans, dates, file paths, arrays, JSON objects) and merged into the arguments object sent to the
   tool. Nested fields are set with dotted names. JSON supplied by the user is applied first and

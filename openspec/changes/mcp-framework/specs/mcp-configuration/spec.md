@@ -12,7 +12,20 @@ created:
   prompt_uri: >-
     prompt:/claude-code/d670cca5-e0f3-47c9-b239-7d358eabbeb6/~80990185-d187-4a21-8126-b18a46afb811
   summary: mcp-configuration spec for mcp-framework
-updated: []
+updated:
+  - date: '2026-11-18T14:03:42.545Z'
+    user: boonek
+    agent:
+      name: claude-code
+      version: 2.x
+    llm:
+      name: claude-sonnet-5-5
+      version: '5.5'
+    prompt_uri: >-
+      prompt:/claude-code/d670cca5-e0f3-47c9-b239-7d358eabbeb6/~e148b5d8-e4eb-4d94-abe8-9e4b485b264f
+    summary: >-
+      init takes the same typed command-line arguments as call, typed from a
+      settings schema
 change_request: mcp-framework
 ---
 ## ADDED Requirements
@@ -110,14 +123,47 @@ that case.
 
 ### Requirement: Init command
 
-The launcher SHALL accept `init [json|@file]`. With a JSON object (inline or from a file) it SHALL save those
-settings without prompting. Without arguments it SHALL prompt for each setting the framework and the MCP
-declared as promptable, showing the current value and keeping it when the user presses Enter. It SHALL print
-the resulting configuration and how to start the server and register it with a client.
+The launcher SHALL accept `init [json|@file] [arguments]`. The arguments SHALL be written and converted
+exactly as for `call` (see the argument-mapping capability): `--port 7561`, `--no-name`, dotted names for
+nested settings, quoting, comma-separated lists, dates, file paths, and the `@` prefix, with any JSON applied
+first and the command-line arguments set on top. The types SHALL come from the MCP's settings schema, written
+in Zod, which covers the framework's own settings as well; a setting with no declared type SHALL be typed from
+the type of its default value. `init` SHALL work without a running server and SHALL NOT start one. When any
+settings are given it SHALL save them without prompting. Without arguments it SHALL prompt for each setting the
+framework and the MCP declared as promptable, showing the current value and keeping it when the user presses
+Enter. It SHALL print the resulting configuration and how to start the server and register it with a client.
 
-#### Scenario: Non-interactive
+#### Scenario: Non-interactive with JSON
 - **WHEN** `init '{"port":7561}'` is run
 - **THEN** the port is saved and the full configuration is printed
+
+#### Scenario: Non-interactive with arguments
+- **WHEN** `init --port 7561 --log_level debug` is run
+- **THEN** the port is saved as the number 7561 and the log level as the string `debug`
+
+#### Scenario: JSON and arguments together
+- **WHEN** `init @base.json --port 7562` is run
+- **THEN** the settings in the file are applied first and the port is then set to 7562
+
+#### Scenario: Nested setting
+- **WHEN** `init --reindex_defaults.agent.name claude` is run and the setting is a nested object
+- **THEN** only that field is set and the object's other fields are kept
+
+#### Scenario: Unknown setting
+- **WHEN** `init --prot 7561` is run and no such setting exists
+- **THEN** the command fails naming `prot`, suggests `port`, and saves nothing
+
+#### Scenario: Wrong type
+- **WHEN** `init --port abc` is run
+- **THEN** the command fails naming the setting and the value, and saves nothing
+
+#### Scenario: Setting typed from its default
+- **WHEN** a setting has no declared type and its default is a boolean, and `init --no-feature` is run
+- **THEN** the setting is saved as false
+
+#### Scenario: No server needed
+- **WHEN** `init --port 7561` is run and the server has never been started
+- **THEN** the setting is saved and no server is started
 
 #### Scenario: Interactive
 - **WHEN** `init` is run in a terminal and the user answers only the port prompt

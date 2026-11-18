@@ -12,7 +12,18 @@ created:
   prompt_uri: >-
     prompt:/claude-code/d670cca5-e0f3-47c9-b239-7d358eabbeb6/~80990185-d187-4a21-8126-b18a46afb811
   summary: cli-argument-mapping spec for mcp-framework
-updated: []
+updated:
+  - date: '2026-11-18T14:33:55.254Z'
+    user: boonek
+    agent:
+      name: claude-code
+      version: 2.x
+    llm:
+      name: claude-sonnet-5-5
+      version: '5.5'
+    prompt_uri: >-
+      prompt:/claude-code/d670cca5-e0f3-47c9-b239-7d358eabbeb6/~e148b5d8-e4eb-4d94-abe8-9e4b485b264f
+    summary: Extend argument mapping to init
 change_request: mcp-framework
 ---
 ## ADDED Requirements
@@ -332,3 +343,22 @@ file paths, and lists.
 #### Scenario: Help does not call the tool
 - **WHEN** `--help` is given
 - **THEN** the tool is not called
+
+### Requirement: The same conversion for init
+
+The `init` command SHALL convert its arguments with exactly the same rules as `call`: the same syntax,
+quoting, arrays, dotted names, dates, file paths, the `@` prefix, merge order, and failure behavior. The only
+difference SHALL be where the types come from: for `call`, the tool's input schema from the running server; for
+`init`, the MCP's settings schema, with a setting that has no declared type typed from its default value.
+
+#### Scenario: One implementation
+- **WHEN** the same text is given as a value to `call` for a field and to `init` for a setting of the same declared type
+- **THEN** both produce the same converted value
+
+#### Scenario: Help for init
+- **WHEN** `init --help` is run
+- **THEN** every setting is listed as it is written on the command line, with its type, its default, and its description, and nothing is saved
+
+#### Scenario: Setting that cannot be typed
+- **WHEN** a setting has no declared type and its default is null
+- **THEN** its value is sent as a string and `init --help` says the setting is untyped

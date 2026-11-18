@@ -12,7 +12,18 @@ created:
   prompt_uri: >-
     prompt:/claude-code/d670cca5-e0f3-47c9-b239-7d358eabbeb6/~80990185-d187-4a21-8126-b18a46afb811
   summary: plugin-contract spec for mcp-framework
-updated: []
+updated:
+  - date: '2026-11-18T14:06:24.636Z'
+    user: boonek
+    agent:
+      name: claude-code
+      version: 2.x
+    llm:
+      name: claude-sonnet-5-5
+      version: '5.5'
+    prompt_uri: >-
+      prompt:/claude-code/d670cca5-e0f3-47c9-b239-7d358eabbeb6/~e148b5d8-e4eb-4d94-abe8-9e4b485b264f
+    summary: Add optional settings schema to the plugin definition
 change_request: mcp-framework
 ---
 ## ADDED Requirements
@@ -92,7 +103,7 @@ framework SHALL NOT create such state per request.
 
 The definition MAY include: a startup function that runs before the port is bound; a function that runs after
 the server is listening, for background work such as timers or workers; a health extension; a shutdown function;
-a function that adds default arguments to `call`; a function that runs when a bridge starts; a validation and
+a function that adds default arguments to `call`; a function that runs when a bridge starts; a Zod schema for its settings, which types the arguments to `init`; a validation and
 normalization function for configuration updates; extra configuration settings to prompt for in `init`; and extra
 launcher options with their help text and handlers. Every hook SHALL be optional and the MCP SHALL work without
 any of them.
