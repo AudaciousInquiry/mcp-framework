@@ -12,7 +12,20 @@ created:
   prompt_uri: >-
     prompt:/claude-code/d670cca5-e0f3-47c9-b239-7d358eabbeb6/~80990185-d187-4a21-8126-b18a46afb811
   summary: stdio-bridge spec for mcp-framework
-updated: []
+updated:
+  - date: '2026-11-20T22:39:17.832Z'
+    user: boonek
+    agent:
+      name: claude-code
+      version: unknown
+    llm:
+      name: claude-sonnet-5-5
+      version: '5.5'
+    prompt_uri: >-
+      prompt:/claude-code/d670cca5-e0f3-47c9-b239-7d358eabbeb6/~11091216-f733-4bdf-8e35-9211803e7e81
+    summary: >-
+      Requests during reconnect get an immediate error response instead of being
+      held
 change_request: mcp-framework
 ---
 ## ADDED Requirements
@@ -79,14 +92,14 @@ exits, because other clients may be using it.
 ### Requirement: Recover from server death without dropping the client
 
 When the connection to the server closes unexpectedly, the bridge SHALL restart the server, reconnect, and
-keep the client connected, so the client does not have to restart the MCP. Messages the client sends while
-the bridge is reconnecting SHALL be held and forwarded after the reconnect. A request that was already in
-flight when the server died and cannot be completed SHALL receive an error response carrying the same
-request id, so the client is not left waiting.
+keep the client connected, so the client does not have to restart the MCP. A request that cannot be
+completed because the server died, whether it was already in flight or arrives while the bridge is
+reconnecting, SHALL receive an error response carrying the same request id, so the client fails fast and
+can retry instead of waiting for its own timeout. The bridge SHALL NOT hold requests for later forwarding.
 
 #### Scenario: Server crashes between calls
-- **WHEN** the server dies while the client is idle and the client then sends a tool call
-- **THEN** the bridge restarts the server, reconnects, forwards the call, and returns its result
+- **WHEN** the server dies while the client is idle, the bridge finishes reconnecting, and the client then sends a tool call
+- **THEN** the call is forwarded to the restarted server and its result is returned
 
 #### Scenario: Server crashes during a call
 - **WHEN** the server dies while a request is in flight
@@ -94,7 +107,8 @@ request id, so the client is not left waiting.
 
 #### Scenario: Client message arrives during reconnect
 - **WHEN** the client sends a request while the bridge is restarting the server
-- **THEN** the request is forwarded once the reconnect completes and its response is returned normally
+- **THEN** the client receives an error response carrying that request's id right away, and the request is not forwarded later
+- **AND** requests sent after the reconnect completes succeed normally
 
 #### Scenario: Recovery fails
 - **WHEN** the server cannot be restarted within the respawn timeout

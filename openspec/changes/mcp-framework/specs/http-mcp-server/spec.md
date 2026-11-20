@@ -12,7 +12,20 @@ created:
   prompt_uri: >-
     prompt:/claude-code/d670cca5-e0f3-47c9-b239-7d358eabbeb6/~80990185-d187-4a21-8126-b18a46afb811
   summary: http-mcp-server spec for mcp-framework
-updated: []
+updated:
+  - date: '2026-11-20T22:39:11.740Z'
+    user: boonek
+    agent:
+      name: claude-code
+      version: unknown
+    llm:
+      name: claude-sonnet-5-5
+      version: '5.5'
+    prompt_uri: >-
+      prompt:/claude-code/d670cca5-e0f3-47c9-b239-7d358eabbeb6/~11091216-f733-4bdf-8e35-9211803e7e81
+    summary: >-
+      Drop server name from /health; uptime_seconds is a number; identify port
+      occupant by pid vs process id file
 change_request: mcp-framework
 ---
 ## ADDED Requirements
@@ -89,12 +102,14 @@ error body, unless response headers were already sent.
 
 ### Requirement: Health endpoint
 
-`GET /health` SHALL return status 200 with a JSON body containing at least: `status` (`"ok"`), `server` (the
-MCP's name), `version`, `pid`, and `uptime_seconds` (a whole number). The MCP MAY add its own fields.
+`GET /health` SHALL return status 200 with a JSON body containing at least: `status` (`"ok"`), `version`,
+`pid`, and `uptime_seconds` (a whole number of seconds; the unit is part of the name). The body SHALL NOT
+include a server name: the MCP's name is already known to anyone who can reach its data directory or
+launcher. The MCP MAY add its own fields.
 
 #### Scenario: Base fields
 - **WHEN** a client requests `/health` on a running server
-- **THEN** the body has `status`, `server`, `version`, `pid`, and `uptime_seconds`
+- **THEN** the body has `status`, `version`, `pid`, and `uptime_seconds`, and `uptime_seconds` is a number
 
 #### Scenario: Plugin adds fields
 - **WHEN** the MCP supplied a health extension function
@@ -111,15 +126,22 @@ MCP's name), `version`, `pid`, and `uptime_seconds` (a whole number). The MCP MA
 ### Requirement: Port-in-use identification
 
 When the configured port is already bound, the server SHALL read the occupant's health response to decide
-what to do: if the occupant reports the same MCP name, it exits quietly with status zero; otherwise it
-reports the unexpected occupant and exits non-zero.
+what to do. The occupant is this MCP when the `pid` in its health response equals the process id recorded
+in this MCP's own process id file (each MCP has its own data directory, so the file identifies the MCP). If
+the health response answers but the file does not exist yet, the server SHALL wait briefly and check again,
+because the occupant writes the file just after binding the port. An occupant that is this MCP makes the
+new process exit quietly with status zero; any other occupant is reported and the process exits non-zero.
 
 #### Scenario: Same MCP already running
-- **WHEN** the port is in use and `/health` answers with this MCP's name
+- **WHEN** the port is in use and `/health` answers with a `pid` that matches this MCP's process id file
 - **THEN** the new process logs that it is already running and exits with status zero
 
+#### Scenario: Occupant is still writing its process id file
+- **WHEN** the port is in use, `/health` answers, and the process id file does not exist yet
+- **THEN** the new process waits briefly and checks again before deciding, so two processes started together do not report each other as conflicts
+
 #### Scenario: Different program on the port
-- **WHEN** the port is in use and `/health` is missing, not JSON, or names another server
+- **WHEN** the port is in use and `/health` is missing, not JSON, has no `pid`, or has a `pid` that does not match this MCP's process id file
 - **THEN** the new process logs the conflict, including the response when there is one, and exits with a non-zero status
 
 #### Scenario: Other bind errors

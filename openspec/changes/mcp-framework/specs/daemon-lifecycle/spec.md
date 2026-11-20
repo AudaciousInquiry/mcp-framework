@@ -12,7 +12,31 @@ created:
   prompt_uri: >-
     prompt:/claude-code/d670cca5-e0f3-47c9-b239-7d358eabbeb6/~80990185-d187-4a21-8126-b18a46afb811
   summary: daemon-lifecycle spec for mcp-framework
-updated: []
+updated:
+  - date: '2026-11-20T22:39:13.737Z'
+    user: boonek
+    agent:
+      name: claude-code
+      version: unknown
+    llm:
+      name: claude-sonnet-5-5
+      version: '5.5'
+    prompt_uri: >-
+      prompt:/claude-code/d670cca5-e0f3-47c9-b239-7d358eabbeb6/~11091216-f733-4bdf-8e35-9211803e7e81
+    summary: Port-in-use scenario no longer relies on a server name in /health
+  - date: '2026-11-20T22:20:17.345Z'
+    user: boonek
+    agent:
+      name: claude-code
+      version: unknown
+    llm:
+      name: claude-sonnet-5-5
+      version: '5.5'
+    prompt_uri: >-
+      prompt:/claude-code/d670cca5-e0f3-47c9-b239-7d358eabbeb6/~dfd27b0f-5b6e-4cab-aea6-e1ce81ef0e0a
+    summary: >-
+      Restart no longer replaces a newer running server; user stops it first
+      (aligns spec with the launcher help text)
 change_request: mcp-framework
 ---
 ## ADDED Requirements
@@ -57,7 +81,7 @@ at the same version SHALL succeed without starting another process.
 - **AND** every launcher ends up reporting a healthy server
 
 #### Scenario: Port held by something else
-- **WHEN** the configured port is in use by a process that does not identify itself as this MCP in its health response
+- **WHEN** the configured port is in use by a process whose health response does not match this MCP's process id file (see the HTTP server's port-in-use identification)
 - **THEN** the server reports that the port is held by another process and exits non-zero
 
 ### Requirement: Version-aware start
@@ -70,8 +94,9 @@ health endpoint, with the launcher's own version.
 - **THEN** the older server is stopped and the launcher's version is started in its place
 
 #### Scenario: Running server is newer
-- **WHEN** the launcher is run without the restart option and the running server reports a newer version
+- **WHEN** the launcher is run, with or without the restart option, and the running server reports a newer version
 - **THEN** the launcher reports that a newer version is running, leaves it alone, and exits non-zero
+- **AND** the message tells the user to stop the server with the stop command, after which a normal start succeeds
 
 #### Scenario: Pre-release and build suffixes
 - **WHEN** versions carry pre-release or build suffixes such as `1.2.3-beta.1+build5`
@@ -79,8 +104,9 @@ health endpoint, with the launcher's own version.
 
 ### Requirement: Explicit restart
 
-The launcher SHALL accept a restart option that stops any running server and starts the launcher's version,
-regardless of how the versions compare. Configuration and data SHALL be preserved.
+The launcher SHALL accept a restart option that stops the running server, if any, and starts the launcher's
+version in its place. A running server that is newer than the launcher SHALL NOT be replaced (see
+Version-aware start); the user stops it with the stop command first. Configuration and data SHALL be preserved.
 
 #### Scenario: Restart a running server
 - **WHEN** the launcher is run with the restart option and a server is running
