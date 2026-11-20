@@ -13,6 +13,19 @@ created:
     prompt:/claude-code/d670cca5-e0f3-47c9-b239-7d358eabbeb6/~80990185-d187-4a21-8126-b18a46afb811
   summary: cli-argument-mapping spec for mcp-framework
 updated:
+  - date: '2026-11-20T22:44:42.758Z'
+    user: boonek
+    agent:
+      name: claude-code
+      version: unknown
+    llm:
+      name: claude-sonnet-5-5
+      version: '5.5'
+    prompt_uri: >-
+      prompt:/claude-code/d670cca5-e0f3-47c9-b239-7d358eabbeb6/~ecf40986-d475-42f5-938d-a472d6e1aecb
+    summary: >-
+      Split Dates and date-times into absolute and relative requirements; no
+      behavior change
   - date: '2026-11-18T14:33:55.254Z'
     user: boonek
     agent:
@@ -214,17 +227,12 @@ segment SHALL address an element of an array field.
 - **WHEN** a whole-object JSON argument and a dotted argument for the same object are both given
 - **THEN** the object is set first and the dotted argument is then set on it
 
-### Requirement: Dates and date-times
+### Requirement: Absolute dates and date-times
 
 A date field SHALL be sent as `YYYY-MM-DD`. A date-time field SHALL be sent as a UTC timestamp ending in `Z`.
 The CLI SHALL accept ISO 8601 dates and date-times, with or without a time zone, and the relative forms below.
 A date-time given without a zone, and a date given for a date-time field, SHALL be read in the user's local
 time zone and then converted to UTC. Natural-language dates other than the relative forms SHALL NOT be accepted.
-
-The relative forms are: `now`, `today`, `yesterday`, `tomorrow`, and an offset from now written as a sign,
-a whole number, and a unit: `d` days, `w` weeks, `h` hours, `m` minutes (for example `-7d`, `+2w`, `-3h`,
-`+30m`). For a date field a relative form means the local calendar date it falls on; for a date-time field,
-`today`, `yesterday`, and `tomorrow` mean local midnight of that day, and `now` and offsets mean that instant.
 
 #### Scenario: ISO date for a date field
 - **WHEN** `--since 2026-11-18` is given for a date field
@@ -238,6 +246,18 @@ a whole number, and a unit: `d` days, `w` weeks, `h` hours, `m` minutes (for exa
 - **WHEN** `--at 2026-11-18T09:30:00-05:00` is given for a date-time field
 - **THEN** the tool receives `"2026-11-18T14:30:00.000Z"`
 
+#### Scenario: Impossible date
+- **WHEN** `--since 2026-02-30` is given
+- **THEN** the command fails naming the field and the value
+
+### Requirement: Relative dates and date-times
+
+The CLI SHALL accept these relative forms: `now`, `today`, `yesterday`, `tomorrow`, and an offset from now
+written as a sign, a whole number, and a unit: `d` days, `w` weeks, `h` hours, `m` minutes (for example `-7d`,
+`+2w`, `-3h`, `+30m`). For a date field a relative form means the local calendar date it falls on; for a
+date-time field, `today`, `yesterday`, and `tomorrow` mean local midnight of that day, and `now` and offsets
+mean that instant.
+
 #### Scenario: Relative offset starting with a dash
 - **WHEN** `--since -7d` is given
 - **THEN** the value is taken as the field's value and not as an option, and resolves to seven days before now
@@ -249,10 +269,6 @@ a whole number, and a unit: `d` days, `w` weeks, `h` hours, `m` minutes (for exa
 #### Scenario: Unrecognized text
 - **WHEN** `--since "last tuesday"` is given
 - **THEN** the command fails naming the field and lists the accepted forms
-
-#### Scenario: Impossible date
-- **WHEN** `--since 2026-02-30` is given
-- **THEN** the command fails naming the field and the value
 
 ### Requirement: File path arguments
 

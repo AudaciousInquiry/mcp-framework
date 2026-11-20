@@ -13,6 +13,19 @@ created:
     prompt:/claude-code/d670cca5-e0f3-47c9-b239-7d358eabbeb6/~80990185-d187-4a21-8126-b18a46afb811
   summary: mcp-configuration spec for mcp-framework
 updated:
+  - date: '2026-11-20T22:44:36.816Z'
+    user: boonek
+    agent:
+      name: claude-code
+      version: unknown
+    llm:
+      name: claude-sonnet-5-5
+      version: '5.5'
+    prompt_uri: >-
+      prompt:/claude-code/d670cca5-e0f3-47c9-b239-7d358eabbeb6/~ecf40986-d475-42f5-938d-a472d6e1aecb
+    summary: >-
+      Split the Init command requirement into three single-behavior
+      requirements; no behavior change
   - date: '2026-11-18T14:03:42.545Z'
     user: boonek
     agent:
@@ -121,7 +134,7 @@ that case.
 - **WHEN** the file sets the port to 0, 70000, or text
 - **THEN** the command fails naming the setting and the allowed range
 
-### Requirement: Init command
+### Requirement: Init saves settings given as arguments
 
 The launcher SHALL accept `init [json|@file] [arguments]`. The arguments SHALL be written and converted
 exactly as for `call` (see the argument-mapping capability): `--port 7561`, `--no-name`, dotted names for
@@ -129,9 +142,7 @@ nested settings, quoting, comma-separated lists, dates, file paths, and the `@` 
 first and the command-line arguments set on top. The types SHALL come from the MCP's settings schema, written
 in Zod, which covers the framework's own settings as well; a setting with no declared type SHALL be typed from
 the type of its default value. `init` SHALL work without a running server and SHALL NOT start one. When any
-settings are given it SHALL save them without prompting. Without arguments it SHALL prompt for each setting the
-framework and the MCP declared as promptable, showing the current value and keeping it when the user presses
-Enter. It SHALL print the resulting configuration and how to start the server and register it with a client.
+settings are given it SHALL save them without prompting.
 
 #### Scenario: Non-interactive with JSON
 - **WHEN** `init '{"port":7561}'` is run
@@ -165,6 +176,12 @@ Enter. It SHALL print the resulting configuration and how to start the server an
 - **WHEN** `init --port 7561` is run and the server has never been started
 - **THEN** the setting is saved and no server is started
 
+### Requirement: Init prompts when given no settings
+
+Without arguments, `init` SHALL prompt for each setting the framework and the MCP declared as promptable,
+showing the current value and keeping it when the user presses Enter. A value that fails validation SHALL be
+rejected and nothing saved.
+
 #### Scenario: Interactive
 - **WHEN** `init` is run in a terminal and the user answers only the port prompt
 - **THEN** the port is updated and the other settings keep their values
@@ -172,6 +189,11 @@ Enter. It SHALL print the resulting configuration and how to start the server an
 #### Scenario: Invalid answer
 - **WHEN** the user enters a value that fails validation
 - **THEN** the command reports why and saves nothing
+
+### Requirement: Init reports the result
+
+When `init` finishes, it SHALL print the resulting configuration and how to start the server and register it
+with a client.
 
 #### Scenario: Next steps
 - **WHEN** init finishes
