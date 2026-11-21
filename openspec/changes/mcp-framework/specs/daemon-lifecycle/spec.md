@@ -13,6 +13,17 @@ created:
     prompt:/claude-code/d670cca5-e0f3-47c9-b239-7d358eabbeb6/~80990185-d187-4a21-8126-b18a46afb811
   summary: daemon-lifecycle spec for mcp-framework
 updated:
+  - date: '2026-11-21T16:25:24.802Z'
+    user: boonek
+    agent:
+      name: claude-code
+      version: unknown
+    llm:
+      name: claude-sonnet-5-5
+      version: '5.5'
+    prompt_uri: >-
+      prompt:/claude-code/d670cca5-e0f3-47c9-b239-7d358eabbeb6/~4d54a732-1d43-4d70-82ef-b57c1f6aa41a
+    summary: Port-in-use scenario wording follows the shape-only identification
   - date: '2026-11-20T22:39:13.737Z'
     user: boonek
     agent:
@@ -81,7 +92,7 @@ at the same version SHALL succeed without starting another process.
 - **AND** every launcher ends up reporting a healthy server
 
 #### Scenario: Port held by something else
-- **WHEN** the configured port is in use by a process whose health response does not match this MCP's process id file (see the HTTP server's port-in-use identification)
+- **WHEN** the configured port is in use by a process whose health response does not have the base fields (see the HTTP server's port-in-use identification)
 - **THEN** the server reports that the port is held by another process and exits non-zero
 
 ### Requirement: Version-aware start

@@ -13,6 +13,19 @@ created:
     prompt:/claude-code/d670cca5-e0f3-47c9-b239-7d358eabbeb6/~80990185-d187-4a21-8126-b18a46afb811
   summary: http-mcp-server spec for mcp-framework
 updated:
+  - date: '2026-11-21T16:25:22.681Z'
+    user: boonek
+    agent:
+      name: claude-code
+      version: unknown
+    llm:
+      name: claude-sonnet-5-5
+      version: '5.5'
+    prompt_uri: >-
+      prompt:/claude-code/d670cca5-e0f3-47c9-b239-7d358eabbeb6/~4d54a732-1d43-4d70-82ef-b57c1f6aa41a
+    summary: >-
+      Port-in-use identification judges /health shape only; pid and process id
+      file comparison removed
   - date: '2026-11-20T22:39:11.740Z'
     user: boonek
     agent:
@@ -126,22 +139,18 @@ launcher. The MCP MAY add its own fields.
 ### Requirement: Port-in-use identification
 
 When the configured port is already bound, the server SHALL read the occupant's health response to decide
-what to do. The occupant is this MCP when the `pid` in its health response equals the process id recorded
-in this MCP's own process id file (each MCP has its own data directory, so the file identifies the MCP). If
-the health response answers but the file does not exist yet, the server SHALL wait briefly and check again,
-because the occupant writes the file just after binding the port. An occupant that is this MCP makes the
-new process exit quietly with status zero; any other occupant is reported and the process exits non-zero.
+what to do. The occupant is treated as this MCP when `/health` answers with JSON that has the base fields
+(`status` of `"ok"`, `version`, `pid`, and a numeric `uptime_seconds`). The check judges the shape of the
+response only; it does not try to tell one framework-built MCP from another. An occupant that looks like this
+MCP makes the new process exit quietly with status zero; any other occupant is reported and the process
+exits non-zero.
 
 #### Scenario: Same MCP already running
-- **WHEN** the port is in use and `/health` answers with a `pid` that matches this MCP's process id file
+- **WHEN** the port is in use and `/health` answers with JSON that has the base fields
 - **THEN** the new process logs that it is already running and exits with status zero
 
-#### Scenario: Occupant is still writing its process id file
-- **WHEN** the port is in use, `/health` answers, and the process id file does not exist yet
-- **THEN** the new process waits briefly and checks again before deciding, so two processes started together do not report each other as conflicts
-
 #### Scenario: Different program on the port
-- **WHEN** the port is in use and `/health` is missing, not JSON, has no `pid`, or has a `pid` that does not match this MCP's process id file
+- **WHEN** the port is in use and `/health` is missing, is not JSON, or lacks the base fields
 - **THEN** the new process logs the conflict, including the response when there is one, and exits with a non-zero status
 
 #### Scenario: Other bind errors
