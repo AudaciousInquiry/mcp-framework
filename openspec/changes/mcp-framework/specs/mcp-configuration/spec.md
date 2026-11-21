@@ -13,6 +13,17 @@ created:
     prompt:/claude-code/d670cca5-e0f3-47c9-b239-7d358eabbeb6/~80990185-d187-4a21-8126-b18a46afb811
   summary: mcp-configuration spec for mcp-framework
 updated:
+  - date: '2026-11-21T17:31:02.597Z'
+    user: boonek
+    agent:
+      name: claude-code
+      version: unknown
+    llm:
+      name: claude-sonnet-5-5
+      version: '5.5'
+    prompt_uri: >-
+      prompt:/claude-code/d670cca5-e0f3-47c9-b239-7d358eabbeb6/~937d316c-37fa-4201-8540-d40b1f6244b3
+    summary: A corrupt configuration file stops the start; the user corrects it
   - date: '2026-11-20T22:44:36.816Z'
     user: boonek
     agent:
@@ -124,11 +135,15 @@ before writing. A write SHALL NOT leave a truncated file if the process stops pa
 
 A configuration file that is not valid JSON, or whose port is not a whole number from 1 to 65535, SHALL
 produce an error that names the file and the problem. The file SHALL NOT be overwritten with defaults in
-that case.
+that case, and no server SHALL be started from it: the user corrects the file and tries again.
 
 #### Scenario: Corrupt file
 - **WHEN** the file cannot be parsed
 - **THEN** the command fails with a message naming the file and the parse error, and the file is left as it was
+
+#### Scenario: Start with a corrupt file
+- **WHEN** a start is requested and the configuration file cannot be parsed
+- **THEN** no server is started, the launcher exits non-zero, and the message tells the user to correct the file and run the command again
 
 #### Scenario: Bad port
 - **WHEN** the file sets the port to 0, 70000, or text
