@@ -14,12 +14,25 @@ created:
   summary: >-
     Design draft with approved Decisions 1 and 2 (launcher entry point; two
     files with a server base class and detached spawn)
-updated: []
+updated:
+  - date: '2026-11-21T18:01:43.133Z'
+    user: boonek
+    agent:
+      name: claude-code
+      version: unknown
+    llm:
+      name: claude-sonnet-5-5
+      version: '5.5'
+    prompt_uri: >-
+      prompt:/claude-code/d670cca5-e0f3-47c9-b239-7d358eabbeb6/~6458f374-26f1-4f25-bd2b-c4ff95167ca8
+    summary: >-
+      Add Decision 3 (dependencies) with log4js recorded as a user-approved
+      maintenance exception
 change_request: mcp-framework
 ---
 # Design
 
-> **Status: draft in review.** Decisions 1 and 2 are approved. The remaining decisions are reviewed with
+> **Status: draft in review.** Decisions 1 to 3 are approved. The remaining decisions are reviewed with
 > the user one at a time and added here as they are approved.
 
 ## Context
@@ -131,9 +144,53 @@ Details:
   Node flags (such as a debugger flag) on to the server by default, and it would add a second way to learn
   that the server is up when polling `/health` is needed anyway.
 
+### Decision 3: Dependencies
+
+Three runtime dependencies, a few small pieces written in the framework, and everything else built in.
+
+- `@modelcontextprotocol/sdk` (`^1.32`), a direct dependency. The framework owns the version it is tested
+  against.
+- `log4js` (`^6.9`), a direct dependency. It provides the daily rotation, size limit, backups, and levels that
+  the diagnostics-logging spec describes, and the existing servers already use it with the same settings, so
+  their log files keep the same shape. It is an approved exception to the maintenance rule (see below).
+- `zod` (`^4.4`), a peer dependency. The SDK declares `zod` as a required peer as well. A peer means one copy of
+  Zod is shared with the author's schemas; two copies would break the `.meta()` markers that argument typing
+  reads.
+
+Written in the framework:
+
+- **The argument parser.** Node's `util.parseArgs` rejects `--since -7d` as ambiguous (only `--since=-7d`
+  works), and the argument-mapping spec requires the first form, along with dotted names, `--no-name`, and its
+  own quoting rules.
+- **Date parsing.** The spec allows ISO forms and a short list of relative words and forbids natural language,
+  which a date library would add back.
+- **Comma and quote splitting**, which follows the spec's own quoting rules.
+- **A thin logging module** that configures `log4js`: appenders, named loggers, the level override, and the
+  standard error mirror. It is the only code that imports `log4js`.
+
+Built in, no dependency: `node:http`, `child_process`, `readline/promises` for the `init` prompts, and
+`node:test` for tests.
+
+**Vetting.** `npm audit` on the SDK, `zod`, and `log4js` together reports no vulnerabilities of any severity.
+The SDK (2026-10-23) and `zod` (2026-10-12) were released within the past 12 months. `log4js` has had no
+release since 2023-03-08, which fails the 12-month rule; the user approved it as an exception on 2026-11-21.
+The exception covers the maintenance criterion only, and the no-unfixable-CVE rule still applies. Licenses are
+MIT (SDK, `zod`) and Apache-2.0 (`log4js`).
+
+**Alternatives considered:**
+
+- *`rotating-file-stream` with a small formatting layer of our own.* It passes every vetting check (released
+  2026-11-11, no dependencies), but it replaces a working library with code we would have to write and test. It
+  is the fallback if `log4js` ever develops a problem.
+- *`pino-roll` and `winston-daily-rotate-file`.* Their last releases were 2025-10-06 and 2024-02-09, so they
+  fail the same rule that `log4js` does, with no offsetting advantage.
+
 ## Risks / Trade-offs
 
 - **Two files per MCP.** An author keeps a launcher and a server in step. Mitigation: the launcher is a few
   lines, `serverScript` defaults to the conventional name, and the launcher checks for the file at start-up.
 - **Inheritance.** A base class couples authors to the framework's class shape. Mitigation: the overridable
   methods are the documented contract and follow the same semver rules as the rest of the public surface.
+- **An unmaintained logging library.** `log4js` has had no release in over three years. Mitigation: the user
+  approved it as an exception, `npm audit` is clean today, and only one internal module imports it, so
+  `rotating-file-stream` can replace it without changing the public surface.
