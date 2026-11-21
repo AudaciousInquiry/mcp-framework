@@ -13,6 +13,19 @@ created:
     prompt:/claude-code/d670cca5-e0f3-47c9-b239-7d358eabbeb6/~80990185-d187-4a21-8126-b18a46afb811
   summary: daemon-lifecycle spec for mcp-framework
 updated:
+  - date: '2026-11-21T16:45:15.680Z'
+    user: boonek
+    agent:
+      name: claude-code
+      version: unknown
+    llm:
+      name: claude-sonnet-5-5
+      version: '5.5'
+    prompt_uri: >-
+      prompt:/claude-code/d670cca5-e0f3-47c9-b239-7d358eabbeb6/~baac6f7a-02f4-4973-a8ef-c61895f56901
+    summary: >-
+      Replace busy-is-not-dead retry with an advisory report: refused connection
+      starts a server; silent connection is reported, never killed
   - date: '2026-11-21T16:25:24.802Z'
     user: boonek
     agent:
@@ -162,19 +175,23 @@ The launcher SHALL accept a stop option that stops a running server and exits wi
 - **WHEN** the launcher is run with the stop option and no server is running
 - **THEN** the launcher reports that the server is not running and exits with status zero
 
-### Requirement: Busy is not dead
+### Requirement: An unresponsive server is reported, not killed
 
-A single missed health check SHALL NOT be treated as proof that a server is dead. The launcher SHALL
-retry the health check with a delay before concluding that a server is unresponsive, and only then fall
-back to the process id file.
+When a health check gets no answer, the launcher SHALL tell a server that is gone from one that is merely
+not answering. A refused connection means nothing is listening, so no server is running and the launcher
+starts one. A connection that is accepted but gets no answer within the check's timeout means a server is
+running and may be busy. In that case the launcher SHALL NOT stop it and SHALL NOT retry in a loop; it SHALL
+report that the server is not answering and may be busy, and exit non-zero. The report is advice only. Only
+an explicit stop or restart ever ends a running server.
 
-#### Scenario: Server briefly unresponsive
-- **WHEN** one health check times out because the server is busy, and a later retry succeeds
-- **THEN** the launcher treats the server as running and applies the version comparison, without killing it
+#### Scenario: Nothing is listening
+- **WHEN** the health check's connection is refused
+- **THEN** a stale process id file, if there is one, is removed and a new server is started without waiting
 
-#### Scenario: Server really gone
-- **WHEN** every health check retry fails and the process id file names a process that no longer exists
-- **THEN** the stale process id file is removed and a new server is started
+#### Scenario: Server connected but not answering
+- **WHEN** the health check connects but gets no answer within its timeout
+- **THEN** the launcher reports that the server is not answering and may be busy, names its process id when the process id file names a running process, and says the stop command ends it
+- **AND** the server is left running and the launcher exits non-zero
 
 ### Requirement: Process id file
 
