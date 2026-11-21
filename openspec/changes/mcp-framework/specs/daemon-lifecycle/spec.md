@@ -13,6 +13,17 @@ created:
     prompt:/claude-code/d670cca5-e0f3-47c9-b239-7d358eabbeb6/~80990185-d187-4a21-8126-b18a46afb811
   summary: daemon-lifecycle spec for mcp-framework
 updated:
+  - date: '2026-11-21T17:33:20.737Z'
+    user: boonek
+    agent:
+      name: claude-code
+      version: unknown
+    llm:
+      name: claude-sonnet-5-5
+      version: '5.5'
+    prompt_uri: >-
+      prompt:/claude-code/d670cca5-e0f3-47c9-b239-7d358eabbeb6/~396f0a69-9a9a-4adb-a527-4de3d9718030
+    summary: Startup timeout reports and leaves the new server running; no kill
   - date: '2026-11-21T16:45:15.680Z'
     user: boonek
     agent:
@@ -84,7 +95,8 @@ success. The launcher SHALL NOT report success until the server is healthy.
 
 #### Scenario: Server never becomes healthy
 - **WHEN** the server is still not healthy after the startup timeout
-- **THEN** the launcher stops the process it started, reports the timeout, and exits non-zero
+- **THEN** the launcher reports the timeout, says the server may still be starting, names its process id and the log file, and exits non-zero
+- **AND** the process it started is left running, because only an explicit stop or restart ends a server
 
 #### Scenario: Server output is captured
 - **WHEN** the server is started in the background

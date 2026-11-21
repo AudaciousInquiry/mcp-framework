@@ -13,6 +13,19 @@ created:
     prompt:/claude-code/d670cca5-e0f3-47c9-b239-7d358eabbeb6/~80990185-d187-4a21-8126-b18a46afb811
   summary: plugin-contract spec for mcp-framework
 updated:
+  - date: '2026-11-21T17:33:23.834Z'
+    user: boonek
+    agent:
+      name: claude-code
+      version: unknown
+    llm:
+      name: claude-sonnet-5-5
+      version: '5.5'
+    prompt_uri: >-
+      prompt:/claude-code/d670cca5-e0f3-47c9-b239-7d358eabbeb6/~396f0a69-9a9a-4adb-a527-4de3d9718030
+    summary: >-
+      Document that slow setup belongs in the after-listening hook so health
+      answers during it
   - date: '2026-11-18T14:06:24.636Z'
     user: boonek
     agent:
@@ -91,6 +104,11 @@ The framework SHALL let the MCP create its long-lived resources once, when the s
 pass what it created to the tool registration function, to the health extension, and to the shutdown hook. The
 framework SHALL NOT create such state per request.
 
+The framework SHALL document that setup which can take long, such as downloading or loading a model, belongs in
+the function that runs after the server is listening and not in the startup function, because the launcher and
+the bridge wait only until the server answers its health check. Tool calls made before that work finishes are
+the MCP's to answer, normally with a clear "still starting, try again shortly" error.
+
 #### Scenario: Shared resource
 - **WHEN** the startup function opens a resource and returns it
 - **THEN** every tool handler can use that same resource on every request
@@ -98,6 +116,10 @@ framework SHALL NOT create such state per request.
 #### Scenario: Startup failure
 - **WHEN** the startup function throws
 - **THEN** the server logs the error with its stack trace, does not bind the port, writes no process id file, and exits non-zero
+
+#### Scenario: Slow setup after listening
+- **WHEN** the MCP starts a long download from the function that runs after the server is listening
+- **THEN** the server answers its health check while the download runs, and the launcher and bridge report success without waiting for it
 
 ### Requirement: Optional hooks
 
