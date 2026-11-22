@@ -13,6 +13,17 @@ created:
     prompt:/claude-code/d670cca5-e0f3-47c9-b239-7d358eabbeb6/~80990185-d187-4a21-8126-b18a46afb811
   summary: http-mcp-server spec for mcp-framework
 updated:
+  - date: '2026-11-22T13:52:11.734Z'
+    user: boonek
+    agent:
+      name: claude-code
+      version: unknown
+    llm:
+      name: claude-sonnet-5-5
+      version: '5.5'
+    prompt_uri: >-
+      prompt:/claude-code/d670cca5-e0f3-47c9-b239-7d358eabbeb6/~7b44a3ad-9703-499e-8105-ffbf54de0368
+    summary: 'Request size limit defaults to 1 MB, overridable with maxBodyBytes'
   - date: '2026-11-22T13:36:36.476Z'
     user: boonek
     agent:
@@ -195,11 +206,20 @@ are unaffected.
 
 ### Requirement: Request size limit
 
-The server SHALL reject a request body larger than a configured limit with status 413 before parsing it.
+The server SHALL reject a request body larger than a limit with status 413 before parsing it. The limit is 1 MB
+(1,048,576 bytes) unless the MCP sets a different `maxBodyBytes`. The error message SHALL name the setting.
 
 #### Scenario: Oversized body
 - **WHEN** a request body exceeds the limit
-- **THEN** the response is 413, the body is not parsed, and the server keeps running
+- **THEN** the response is 413, the body is not parsed, the message names `maxBodyBytes`, and the server keeps running
+
+#### Scenario: Body just under the limit
+- **WHEN** a request body is one byte under the limit
+- **THEN** it is handled normally
+
+#### Scenario: Limit overridden by the MCP
+- **WHEN** the MCP sets `maxBodyBytes` to a different value
+- **THEN** that value replaces the 1 MB default
 
 ### Requirement: Tool call observability
 

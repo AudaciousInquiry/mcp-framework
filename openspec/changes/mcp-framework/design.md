@@ -15,6 +15,17 @@ created:
     Design draft with approved Decisions 1 and 2 (launcher entry point; two
     files with a server base class and detached spawn)
 updated:
+  - date: '2026-11-22T13:52:14.904Z'
+    user: boonek
+    agent:
+      name: claude-code
+      version: unknown
+    llm:
+      name: claude-sonnet-5-5
+      version: '5.5'
+    prompt_uri: >-
+      prompt:/claude-code/d670cca5-e0f3-47c9-b239-7d358eabbeb6/~7b44a3ad-9703-499e-8105-ffbf54de0368
+    summary: Record 1 MB body limit default and its basis in Decision 5
   - date: '2026-11-22T13:36:27.758Z'
     user: boonek
     agent:
@@ -286,7 +297,10 @@ MCP client cannot connect directly; none is in scope, and browser tools that go 
 `Origin`. An `allowedOrigins` setting can be added later if a real need appears.
 
 **Implementation.** About 20 lines on `node:http`. The SDK's Host-check helper is written for Express and has no
-Origin check, so it is not used. A body size limit is applied to the JSON body before parsing.
+Origin check, so it is not used. A body size limit is applied to the JSON body before parsing. The default is 1 MB, set from the size
+distribution of the files in the author's own index: 97% are under 1 MB, and the files over 1 MB that a tool
+could receive inline were a handful of `md` files (the largest 1.64 MB, session text logs) and test or reference
+`csv` data that tools take by path. An MCP raises it with `maxBodyBytes`, and the 413 message names that setting.
 
 **Alternatives considered:**
 
