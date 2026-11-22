@@ -15,6 +15,30 @@ created:
     Design draft with approved Decisions 1 and 2 (launcher entry point; two
     files with a server base class and detached spawn)
 updated:
+  - date: '2026-11-22T13:36:27.758Z'
+    user: boonek
+    agent:
+      name: claude-code
+      version: unknown
+    llm:
+      name: claude-sonnet-5-5
+      version: '5.5'
+    prompt_uri: >-
+      prompt:/claude-code/d670cca5-e0f3-47c9-b239-7d358eabbeb6/~23a03e47-108e-44c6-950c-19f4b1c36690
+    summary: 'Add Decision 5 (HTTP request handling, Origin and Host checks, no CORS)'
+  - date: '2026-11-21T18:09:53.221Z'
+    user: boonek
+    agent:
+      name: claude-code
+      version: unknown
+    llm:
+      name: claude-sonnet-5-5
+      version: '5.5'
+    prompt_uri: >-
+      prompt:/claude-code/d670cca5-e0f3-47c9-b239-7d358eabbeb6/~bdba6d58-b6e7-4951-9f77-5f3927deef53
+    summary: >-
+      Add Decision 4: tool schemas in a shared file read locally by the
+      launcher; one converter for call and init
   - date: '2026-11-21T18:01:43.133Z'
     user: boonek
     agent:
@@ -32,7 +56,7 @@ change_request: mcp-framework
 ---
 # Design
 
-> **Status: draft in review.** Decisions 1 to 3 are approved. The remaining decisions are reviewed with
+> **Status: draft in review.** Decisions 1 to 5 are approved. The remaining decisions are reviewed with
 > the user one at a time and added here as they are approved.
 
 ## Context
@@ -185,8 +209,99 @@ MIT (SDK, `zod`) and Apache-2.0 (`log4js`).
 - *`pino-roll` and `winston-daily-rotate-file`.* Their last releases were 2025-10-06 and 2024-02-09, so they
   fail the same rule that `log4js` does, with no offsetting advantage.
 
+### Decision 4: Tool schemas live in a shared file that the launcher reads locally
+
+The command-line commands learn their types from the same code base that defines the tools, not from the
+running server. A third small file, `tools.js` by convention, holds each tool's name, description, and Zod
+schema, and no handlers. The launcher and the server both load it, and the server loads the rest of the tool
+code separately.
+
+```js
+// tools.js, shared by the launcher and the server
+const { defineTools } = require('mcp-framework');
+module.exports = defineTools([
+  { name: 'search', description: '...', inputSchema: z.object({ query: z.string() }) },
+]);
+
+// index.js: runLauncher({ defaultPort: 7561, tools: require('./tools'), settings: ... });
+// server.js: this.register(server, require('./tools'), { search: async (args) => { ... } });
+```
+
+- **One source of truth.** The framework's `register` helper attaches handlers to the shared definitions by
+  name, so the server cannot register a tool the file does not describe. The two cannot drift.
+- **One converter.** It takes a JSON Schema and the raw command-line tokens and produces typed JSON. For
+  `call` the schema comes from the shared tool definitions, converted with Zod 4's `z.toJSONSchema`. For
+  `init` it comes from the launcher definition's `settings` schema plus the framework's own settings, and a
+  setting with no declared type is typed from its default's value. The `.meta()` markers, such as
+  `x-cli: 'file'`, are read from the same schemas.
+- **The call itself still goes to the server over HTTP.** Only the schema lookup is local. As a result,
+  `call --help <tool>`, argument errors such as an unknown name, and `list` all work with no server running.
+- **Validation stays on the server.** Rules the schema cannot express, such as refinements, are checked by the
+  server; the client only converts types.
+- **Tools registered at run time.** A tool that is not in the shared file is unknown to the launcher. `call`
+  still sends JSON arguments for it as before and rejects flag-style arguments with a clear message.
+
+**Alternatives considered:**
+
+- *The launcher asks the running server for its tool list over MCP.* It carries the same schemas the agents
+  see, but it needs a running server for help and for argument errors, adds a round trip to every call, and
+  duplicates what the shared file already provides.
+- *A custom schema endpoint on the server.* One more endpoint to keep in step with the tool list, for no gain.
+- *The launcher imports the whole server file.* It avoids the file split but makes the launcher load the tool
+  code and its heavy dependencies, which Decision 2 avoids.
+
+### Decision 5: How the HTTP server handles a request
+
+**Structure.** The server uses plain `node:http`, with the SDK's stateless transport doing the MCP work. Three
+routes exist: `POST /` carries MCP, `GET /health` reports health, and `POST /shutdown` begins a graceful stop.
+Any other route gets a 404. `GET` and `DELETE` on `/` get a 405, because stateless mode has no streams to open
+and no sessions to close.
+
+**A fresh SDK server and transport for every MCP request, with no session id.** This is the SDK's documented
+stateless pattern. The framework builds the server, calls the author's `registerTools(server, context)`,
+connects, handles the request, and closes both when the response ends. Long-lived resources live in the
+`context` returned by `startup`, shared across requests. `registerTools` therefore runs on every request and
+must be cheap: it registers tools and never creates resources.
+
+**Handler wrapping.** The `register` helper from Decision 4 wraps every handler. An exception becomes an
+ordinary error result, not a failed request, and the stack goes to the log. Each call's start, duration and
+outcome are logged. The wrapper is where the tool-error and tool-call-observability requirements live, so
+authors cannot forget them.
+
+**Who may call.** Binding to loopback keeps other machines out. It does not stop a web page open in the user's
+browser from reaching `127.0.0.1`, for example through DNS rebinding. The MCP transport specification requires
+servers to validate `Origin` and return 403 for an invalid one. Tools such as file writers, and the `/shutdown`
+route, make this matter. The server therefore refuses, before any other handling:
+
+- any request that carries an `Origin` header, with 403. Agents, the command line and the bridge never send
+  one. Allowing loopback origins was rejected because a page served from `http://localhost:3000` could still
+  fire the body-less `POST /shutdown`, which a browser sends without a preflight.
+- any request whose `Host` is not `127.0.0.1`, `localhost` or `[::1]` on the server's own port, with 403. This
+  stops DNS rebinding, where the browser believes the request is same-origin.
+
+**No CORS.** The server sends no `Access-Control-*` headers. CORS only relaxes the browser's rules for reading
+responses, and no web page should talk to this server. Omitting it is not protection on its own (simple
+requests are still sent), which is why the Origin and Host checks do the work. The cost is that a browser-based
+MCP client cannot connect directly; none is in scope, and browser tools that go through a local proxy send no
+`Origin`. An `allowedOrigins` setting can be added later if a real need appears.
+
+**Implementation.** About 20 lines on `node:http`. The SDK's Host-check helper is written for Express and has no
+Origin check, so it is not used. A body size limit is applied to the JSON body before parsing.
+
+**Alternatives considered:**
+
+- *Express or Hono for routing.* An extra dependency for three routes.
+- *One shared SDK server and transport across requests.* It needs sessions, which the stateless default rules
+  out; the SDK's stateless mode expects a fresh pair per request.
+- *Rely on loopback binding alone.* It matches the source being extracted, but leaves the browser path open.
+- *Allow loopback origins.* Rejected as above.
+
 ## Risks / Trade-offs
 
+- **Splitting each tool into a schema and a handler.** Authors move their schemas into the shared file. For
+  an existing server with inline schemas, such as the ones the framework was extracted from, that is
+  mechanical work for the migration change. Mitigation: the `register` helper keeps the split small, and the
+  README shows the pattern.
 - **Two files per MCP.** An author keeps a launcher and a server in step. Mitigation: the launcher is a few
   lines, `serverScript` defaults to the conventional name, and the launcher checks for the file at start-up.
 - **Inheritance.** A base class couples authors to the framework's class shape. Mitigation: the overridable

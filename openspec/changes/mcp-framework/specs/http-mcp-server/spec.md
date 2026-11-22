@@ -13,6 +13,19 @@ created:
     prompt:/claude-code/d670cca5-e0f3-47c9-b239-7d358eabbeb6/~80990185-d187-4a21-8126-b18a46afb811
   summary: http-mcp-server spec for mcp-framework
 updated:
+  - date: '2026-11-22T13:36:36.476Z'
+    user: boonek
+    agent:
+      name: claude-code
+      version: unknown
+    llm:
+      name: claude-sonnet-5-5
+      version: '5.5'
+    prompt_uri: >-
+      prompt:/claude-code/d670cca5-e0f3-47c9-b239-7d358eabbeb6/~23a03e47-108e-44c6-950c-19f4b1c36690
+    summary: >-
+      Add Origin/Host refusal and request size limit requirements (design
+      decision 5)
   - date: '2026-11-21T16:25:22.681Z'
     user: boonek
     agent:
@@ -156,6 +169,37 @@ exits non-zero.
 #### Scenario: Other bind errors
 - **WHEN** binding fails for a reason other than the port being in use
 - **THEN** the server logs the error and exits with a non-zero status
+
+### Requirement: Refuse browser and rebinding requests
+
+The server SHALL refuse, with status 403 and before any other handling, a request that carries an `Origin`
+header, and a request whose `Host` header is not `127.0.0.1`, `localhost` or `[::1]` on the server's own port.
+It SHALL NOT send CORS headers. MCP clients, the command line and the bridge send no `Origin` header, so they
+are unaffected.
+
+#### Scenario: Request from a web page
+- **WHEN** a request carries an `Origin` header, including a loopback one such as `http://localhost:3000`
+- **THEN** the response is 403 and nothing is run, including for the shutdown route
+
+#### Scenario: Preflight request
+- **WHEN** a browser sends an `OPTIONS` preflight
+- **THEN** the response is 403 and carries no `Access-Control-*` headers
+
+#### Scenario: DNS rebinding
+- **WHEN** a request arrives with a `Host` header naming any other host, such as `evil.example:7561`
+- **THEN** the response is 403
+
+#### Scenario: Normal client
+- **WHEN** an MCP client or the command line calls `http://127.0.0.1:<port>/` with no `Origin` header
+- **THEN** the request is handled normally
+
+### Requirement: Request size limit
+
+The server SHALL reject a request body larger than a configured limit with status 413 before parsing it.
+
+#### Scenario: Oversized body
+- **WHEN** a request body exceeds the limit
+- **THEN** the response is 413, the body is not parsed, and the server keeps running
 
 ### Requirement: Tool call observability
 
