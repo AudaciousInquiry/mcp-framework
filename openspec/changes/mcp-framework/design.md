@@ -15,6 +15,17 @@ created:
     Design draft with approved Decisions 1 and 2 (launcher entry point; two
     files with a server base class and detached spawn)
 updated:
+  - date: '2026-11-22T23:42:15.604Z'
+    user: boonek
+    agent:
+      name: claude-code
+      version: unknown
+    llm:
+      name: claude-sonnet-5-5
+      version: '5.5'
+    prompt_uri: >-
+      prompt:/claude-code/d670cca5-e0f3-47c9-b239-7d358eabbeb6/~77087839-76a7-4d7b-82d4-bda4edcd4fd0
+    summary: 'Add Decision 6 (daemon start, stop, health), points 6.1 to 6.8 approved'
   - date: '2026-11-22T13:52:14.904Z'
     user: boonek
     agent:
@@ -67,7 +78,7 @@ change_request: mcp-framework
 ---
 # Design
 
-> **Status: draft in review.** Decisions 1 to 5 are approved. The remaining decisions are reviewed with
+> **Status: draft in review.** Decisions 1 to 5 are approved, and Decision 6 is approved except the debug option (6.9). The remaining decisions are reviewed with
 > the user one at a time and added here as they are approved.
 
 ## Context
@@ -309,6 +320,66 @@ could receive inline were a handful of `md` files (the largest 1.64 MB, session 
   out; the SDK's stateless mode expects a fresh pair per request.
 - *Rely on loopback binding alone.* It matches the source being extracted, but leaves the browser path open.
 - *Allow loopback origins.* Rejected as above.
+
+### Decision 6: Starting, stopping and checking the daemon
+
+The mechanics follow the launcher the framework is extracted from, adjusted for the rules in the specs. Each point
+was approved on its own.
+
+**6.1 Health probe.** One `GET /health` to `127.0.0.1` with a 5 second timeout and no retries. A parsed body means
+the server is up. A refused connection means nothing is listening. A connection that is accepted but gets no
+answer means a server is there and busy, and the launcher reports it and leaves it running. The literal address
+is used, never `localhost`, which can resolve to IPv6 first while the server listens on IPv4 only.
+
+**6.2 Start: wait for an event, then ask once.** The launcher removes a stale process id file, spawns the server
+(Decision 2), and waits for one of three events: the child exits (reported with its exit code), the process id
+file appears (the server writes it only after binding), or the startup timeout passes (30 seconds by default,
+`startupTimeoutMs`). When the file appears it sends one `/health` probe as in 6.1. At the timeout it checks the
+file and probes once more, in case a file-watch event was missed, then reports the timeout, names the process id
+and the log file, leaves the server running, and exits non-zero. There is no polling loop and no kill.
+
+**6.3 Windows console window: dropped.** A detached child on Windows is created without a console, and the server
+writes nothing to standard output or standard error except the log file, so there is nothing to hide.
+`windowsHide` is not used.
+
+**6.4 Simultaneous starts: no special handling.** Starts overlap rarely, since an agent is started and waited for
+one at a time. The port-in-use handling from Decision 5 covers it: a second server that finds the port taken
+reads `/health`, sees the base fields, and exits with status zero. There is no lock file. An exclusive-create
+lock file (`O_EXCL`) and a held write lock were considered. Node can create a file exclusively, but cannot hold
+it against deletion (its files are opened with permissive Windows sharing), and the port bind already does the
+job without a stale-file case.
+
+**6.5 Stop.** Only an explicit stop, restart, or replacement of an older version ends a server.
+
+1. `POST /shutdown`, answered within 5 seconds.
+2. If it answers, wait up to 30 seconds for the process to exit. That is longer than the server's 10 second drain.
+3. If it does not answer, or does not exit in time, terminate the process, and force-kill it if it is still alive
+   after 15 seconds.
+4. Wait up to 5 seconds for the port to stop accepting connections, then remove the process id file.
+
+The launcher reports whether the stop was graceful or killed. The timings are the ones in use today.
+
+**6.6 The server's own shutdown.** The same sequence starts from `POST /shutdown`, SIGTERM or SIGINT: stop
+accepting connections, let in-flight requests finish for `drainMs` (10 seconds by default), destroy the rest, run
+the author's `shutdown` hook to completion, remove the process id file, and exit with status zero. A second
+trigger is ignored. Uncaught exceptions and unhandled rejections log the stack trace and exit with status 1.
+On Windows, `/shutdown` is the only way to run this sequence: a signal sent by another process with
+`process.kill` ends the process without running its handler (tested for SIGTERM and SIGINT; SIGKILL can never
+be caught on any system). The signal handlers still serve Linux, macOS, and Ctrl+C in a terminal.
+
+**6.7 Process id file.** The server writes its process id after binding and removes it at shutdown. A launcher
+uses the process id from `/health` when the server answers, and reads the file only when it does not. A file
+whose process is not running is stale and is removed. No further guard is added against the operating system
+reusing a process id, which is too unlikely to design around.
+
+**6.8 Version compare.** A function of about eight lines compares major, minor and patch in order and ignores
+any suffix, as the spec requires. The `semver` package was not used: it ranks a pre-release below its release,
+which would change the approved behaviour, and Decision 3 keeps the dependency list short.
+
+**Alternatives considered:** polling `/health` every 200 ms (replaced by waiting for the process id file); a
+lock file for single instance; looking up the port's owner with `netstat` or `lsof`; `taskkill` or a tree-kill
+library (not needed for one process with worker threads; a plugin that spawns its own children cleans them up in
+`shutdown`).
 
 ## Risks / Trade-offs
 
