@@ -15,6 +15,19 @@ created:
     Design draft with approved Decisions 1 and 2 (launcher entry point; two
     files with a server base class and detached spawn)
 updated:
+  - date: '2026-11-23T21:34:10.497Z'
+    user: boonek
+    agent:
+      name: claude-code
+      version: unknown
+    llm:
+      name: claude-sonnet-5-5
+      version: '5.5'
+    prompt_uri: >-
+      prompt:/claude-code/d670cca5-e0f3-47c9-b239-7d358eabbeb6/~b44a1b4a-e3bd-4dc4-88d1-4300e71d7433
+    summary: >-
+      Add Decision 11 (packaging and release), points 11.1 to 11.4 approved; all
+      decisions approved
   - date: '2026-11-23T20:30:09.165Z'
     user: boonek
     agent:
@@ -146,8 +159,8 @@ change_request: mcp-framework
 ---
 # Design
 
-> **Status: draft in review.** Decisions 1 to 5 are approved, and Decisions 1 to 10 are approved. The remaining decisions are reviewed with
-> the user one at a time and added here as they are approved.
+> **Status: all 11 decisions are approved.** Each was reviewed with the user one point at a time. Next: reconcile
+> the specs touched by the two-file and shared-tools layout, then write `tasks.md`.
 
 ## Context
 
@@ -614,6 +627,41 @@ followed exactly in a clean folder, produce a working MCP. The release tasks are
 **Alternatives considered:** a test framework such as Jest or Vitest (a dependency and, for Vitest, a build-style
 configuration, for no gain over `node:test`); mocking `spawn` and `http` for the lifecycle tests; a Windows CI
 job.
+
+### Decision 11: Packaging and release
+
+Each point was approved on its own.
+
+**11.1 What ships.** The package is `@audaciousinquiry/mcp-framework`. Its `files` list is `src/`, `README.md` and
+`LICENSE`; tests, fixtures, the OpenSpec folder, `RELEASING.md` and the CI files stay in the repository. `main`
+points at the framework entry and `engines` requires Node 22 or later. `npm pack --dry-run` lists exactly what
+would be published, so it can be checked.
+
+**11.2 Versioning and the release workflow.** Follow the public sibling repository. Pushing a tag `vX.Y.Z` runs
+`publish.yml`, which first calls `test.yml` and publishes only if the tests pass, with
+`npm publish --access public --provenance` through npm's OIDC trusted publishing (`id-token: write`, no stored
+npm token). One step is added from the other sibling's workflow: it fails when the tag's version does not match
+`package.json`. Versions follow semver, and the bump itself is a decision for the user when implementation
+starts. Before the first tag, the user adds a trusted publisher for this repository on npmjs.com (organization
+`@audaciousinquiry`, publisher GitHub, owner `AudaciousInquiry`, repository `mcp-framework`, workflow
+`.github/workflows/publish.yml`); the organization-level setting lets the first tagged release create the
+package. The sibling's workflow still sets `NODE_AUTH_TOKEN` from `GITHUB_TOKEN` and publishes successfully, so
+it is copied as is; if the first publish fails, that line is the first suspect.
+
+**11.3 The Node version.** `engines` is only a warning in npm, so the launcher also checks the Node major version
+before anything else. Below 22 it prints one clear line, such as "needs Node 22 or later, found 20", and exits
+non-zero.
+
+**11.4 The README integration guide.** In this order: what it is; a five-minute example of the three files
+(`index.js`, `server.js`, `tools.js`) with start, call and registering with a client; the launcher definition and
+the `ctx` object; writing tools with `defineTools` and `register`; the server class and when each method runs;
+the command line; registering over stdio and over HTTP; configuration and logging; and the things worth
+knowing (the pipe caveat from 6.9, defaults that change after first run, `/shutdown` as the only graceful stop on
+Windows, the 1 MB limit and `maxBodyBytes`). The example is the same code as the stand-in MCP in `test/fixtures/`,
+with the code blocks copied from those files so the guide cannot drift from what works.
+
+**Alternatives considered:** an unscoped package name; a long-lived npm token stored as a repository secret;
+publishing from a developer machine; a README example that is separate from the tested fixture.
 
 ## Risks / Trade-offs
 
