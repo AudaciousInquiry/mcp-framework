@@ -12,19 +12,33 @@ created:
   prompt_uri: >-
     prompt:/claude-code/d670cca5-e0f3-47c9-b239-7d358eabbeb6/~80990185-d187-4a21-8126-b18a46afb811
   summary: cli-client spec for mcp-framework
-updated: []
+updated:
+  - date: '2026-11-23T22:12:24.721Z'
+    user: boonek
+    agent:
+      name: claude-code
+      version: unknown
+    llm:
+      name: claude-sonnet-5-5
+      version: '5.5'
+    prompt_uri: >-
+      prompt:/claude-code/d670cca5-e0f3-47c9-b239-7d358eabbeb6/~f3aee51d-0f37-49bb-8b66-3fda7fac7831
+    summary: >-
+      Reconcile cli-client: list and help work without a server, tools from the
+      shared file, fuller help
 change_request: mcp-framework
 ---
 ## ADDED Requirements
 
 ### Requirement: Query commands never start the server
 
-The `health`, `list`, and `call` commands SHALL act on a server that is already running and SHALL NOT start
-one as a side effect. A command whose purpose is to ask whether the server is running, or what it can do,
+The `health` and `call` commands SHALL act on a server that is already running, and no query command SHALL
+start one as a side effect. `list`, `call <tool> --help`, and argument errors need no server, because the tool
+schemas are read from the MCP's shared tools file. A command whose purpose is to ask whether the server is running, or what it can do,
 must not change whether it is running.
 
 #### Scenario: Server not running
-- **WHEN** any of the three commands is run and nothing is listening on the configured port
+- **WHEN** `health` or `call` is run and nothing is listening on the configured port
 - **THEN** the command reports that the MCP is not reachable on that port and tells the user to start it with the launcher
 - **AND** exits with a non-zero status
 - **AND** no server process is started
@@ -32,6 +46,10 @@ must not change whether it is running.
 #### Scenario: Short wait when unreachable
 - **WHEN** the server does not answer
 - **THEN** the command gives up within a few seconds instead of hanging
+
+#### Scenario: Commands that need no server
+- **WHEN** `list` or `call <tool> --help` is run and nothing is listening
+- **THEN** the command works from the shared tools file and no server is started
 
 ### Requirement: Health command
 
@@ -47,7 +65,7 @@ must not change whether it is running.
 
 ### Requirement: List command
 
-`list` SHALL print every tool the server offers, with its description, and under each tool its parameters,
+`list` SHALL print every tool declared in the MCP's shared tools file, with its description, and under each tool its parameters,
 showing each parameter's name, type, whether it is required, and its description.
 
 #### Scenario: Tool with parameters
@@ -61,6 +79,10 @@ showing each parameter's name, type, whether it is required, and its description
 #### Scenario: Nested object parameter
 - **WHEN** a parameter is an object
 - **THEN** it is shown with type `object` and its own fields are not expanded in the list
+
+#### Scenario: Tool registered at run time
+- **WHEN** the server registers a tool that is not in the shared tools file
+- **THEN** `list` does not show it
 
 #### Scenario: Tool without parameters
 - **WHEN** a tool takes no parameters
@@ -85,8 +107,13 @@ capability, as ordinary command-line arguments.
 - **THEN** a usage message is printed and the exit status is non-zero
 
 #### Scenario: Unknown tool
-- **WHEN** the named tool does not exist on the server
-- **THEN** the command reports that and exits with a non-zero status
+- **WHEN** the named tool is not in the shared tools file and no JSON arguments are given
+- **THEN** the command reports that the tool is unknown and exits with a non-zero status
+
+#### Scenario: Tool registered at run time
+- **WHEN** `call` names a tool that is not in the shared tools file and the arguments are JSON
+- **THEN** the JSON is sent to the server as it is
+- **AND** flag-style arguments for that tool are rejected with a message saying the tool has no declared schema
 
 #### Scenario: Non-text content
 - **WHEN** the tool's result contains content that is not text
@@ -147,8 +174,9 @@ terminal cannot reasonably supply, such as an identity for provenance, without t
 
 ### Requirement: Help
 
-The launcher SHALL print usage when run with `--help` or `-h`, covering its options, the `health`, `list`, and
-`call` commands, the configuration file location, and the default port for this MCP. It SHALL include the
+The launcher SHALL print usage when run with `--help` or `-h`, covering its options, the `health`, `list`, `call`,
+and `init` commands, the start, stop, restart, `--stdio`, `--debug` and `--log-level` options, the configuration
+file location, and the default port for this MCP. It SHALL include the
 help text for any options the MCP added.
 
 #### Scenario: Help output

@@ -13,6 +13,19 @@ created:
     prompt:/claude-code/d670cca5-e0f3-47c9-b239-7d358eabbeb6/~80990185-d187-4a21-8126-b18a46afb811
   summary: http-mcp-server spec for mcp-framework
 updated:
+  - date: '2026-11-23T22:12:31.553Z'
+    user: boonek
+    agent:
+      name: claude-code
+      version: unknown
+    llm:
+      name: claude-sonnet-5-5
+      version: '5.5'
+    prompt_uri: >-
+      prompt:/claude-code/d670cca5-e0f3-47c9-b239-7d358eabbeb6/~f3aee51d-0f37-49bb-8b66-3fda7fac7831
+    summary: >-
+      Reconcile http-mcp-server: 405 for stream and session requests; handler
+      exceptions become error results
   - date: '2026-11-22T13:52:11.734Z'
     user: boonek
     agent:
@@ -80,6 +93,10 @@ SHALL bind only to the loopback interface. It SHALL NOT be reachable from other 
 - **WHEN** a connection is attempted to the machine's non-loopback address on the configured port
 - **THEN** the connection is refused
 
+#### Scenario: Stream or session request
+- **WHEN** a `GET` or `DELETE` request is made to the MCP route
+- **THEN** the response is 405, because the server has no streams to open and no sessions to close
+
 #### Scenario: Unknown route
 - **WHEN** a request is made to any route that is neither the MCP route, the health route, nor the shutdown route
 - **THEN** the response is 404
@@ -123,11 +140,16 @@ function, and SHALL present the tool names, descriptions, and input schemas exac
 
 A tool that reports a failure SHALL produce a normal MCP response marked as an error, with the message in
 its text content. An unexpected exception outside a tool handler SHALL produce a 500 response with a JSON
-error body, unless response headers were already sent.
+error body, unless response headers were already sent. An exception thrown inside a handler registered with the
+framework's `register` helper SHALL also become such an error result, with the stack trace logged.
 
 #### Scenario: Tool reports an error
 - **WHEN** a tool handler returns an error result
 - **THEN** the client receives an HTTP 200 MCP response whose result is flagged as an error
+
+#### Scenario: Handler throws
+- **WHEN** a registered handler throws
+- **THEN** the client receives an HTTP 200 MCP response whose result is flagged as an error and carries the exception's message, and the stack trace is in the log
 
 #### Scenario: Unexpected exception
 - **WHEN** the server throws while handling an MCP request before sending headers

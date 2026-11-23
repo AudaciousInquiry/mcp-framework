@@ -13,6 +13,17 @@ created:
     prompt:/claude-code/d670cca5-e0f3-47c9-b239-7d358eabbeb6/~80990185-d187-4a21-8126-b18a46afb811
   summary: diagnostics-logging spec for mcp-framework
 updated:
+  - date: '2026-11-23T22:12:39.158Z'
+    user: boonek
+    agent:
+      name: claude-code
+      version: unknown
+    llm:
+      name: claude-sonnet-5-5
+      version: '5.5'
+    prompt_uri: >-
+      prompt:/claude-code/d670cca5-e0f3-47c9-b239-7d358eabbeb6/~f3aee51d-0f37-49bb-8b66-3fda7fac7831
+    summary: Debug mirror ignores errors writing to standard error
   - date: '2026-11-23T20:09:08.105Z'
     user: boonek
     agent:
@@ -106,11 +117,16 @@ starts as well as in the main thread.
 ### Requirement: Debug mirror to the terminal
 
 When started with the debug option, the server SHALL write its log lines to standard error as well as to the
-file, and SHALL NOT change the log level on its own.
+file, and SHALL NOT change the log level on its own. If writing to standard error fails, for example because
+the terminal was closed, the server SHALL ignore the error and keep running and keep writing the log file.
 
 #### Scenario: Debug option
 - **WHEN** the server is started with the debug option
 - **THEN** every line written to the file also appears on standard error
+
+#### Scenario: Terminal closed
+- **WHEN** the terminal that standard error is attached to is closed while the debug mirror is on
+- **THEN** the server keeps running and keeps writing the log file
 
 ### Requirement: Named loggers for the plugin
 

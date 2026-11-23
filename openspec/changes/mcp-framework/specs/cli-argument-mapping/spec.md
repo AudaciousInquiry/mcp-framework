@@ -13,6 +13,19 @@ created:
     prompt:/claude-code/d670cca5-e0f3-47c9-b239-7d358eabbeb6/~80990185-d187-4a21-8126-b18a46afb811
   summary: cli-argument-mapping spec for mcp-framework
 updated:
+  - date: '2026-11-23T22:12:28.768Z'
+    user: boonek
+    agent:
+      name: claude-code
+      version: unknown
+    llm:
+      name: claude-sonnet-5-5
+      version: '5.5'
+    prompt_uri: >-
+      prompt:/claude-code/d670cca5-e0f3-47c9-b239-7d358eabbeb6/~f3aee51d-0f37-49bb-8b66-3fda7fac7831
+    summary: >-
+      Reconcile cli-argument-mapping: schemas come from the shared tools file,
+      no server needed
   - date: '2026-11-20T22:44:42.758Z'
     user: boonek
     agent:
@@ -70,8 +83,9 @@ command-line argument overrides the same field in the JSON.
 
 ### Requirement: The tool's own schema decides the types
 
-The CLI SHALL read the tool's input schema from the running server and use it to convert each argument to the
-type the tool declares. It SHALL NOT guess types from the look of the value. A value that is a valid number
+The CLI SHALL read the tool's input schema from the MCP's shared tools file, the same Zod schema the server
+uses, and convert it locally, so no running server is needed. It SHALL use the schema to convert each argument to
+the type the tool declares. It SHALL NOT guess types from the look of the value. A value that is a valid number
 SHALL stay a string when the schema says the field is a string.
 
 #### Scenario: Numeric-looking string
@@ -81,6 +95,10 @@ SHALL stay a string when the schema says the field is a string.
 #### Scenario: String-looking number
 - **WHEN** `--count 7` is given and the schema says `count` is an integer
 - **THEN** the tool receives the number 7
+
+#### Scenario: No server needed
+- **WHEN** `call tool --count 3` is converted and nothing is listening
+- **THEN** the argument is converted and checked from the shared tools file, and an argument error is reported without contacting a server
 
 #### Scenario: No schema information
 - **WHEN** a property has no usable type in the schema
@@ -356,6 +374,10 @@ file paths, and lists.
 - **WHEN** `call tool --help` is run
 - **THEN** every argument is listed, with nested fields shown by dotted name and file-path and date arguments noted
 
+#### Scenario: Help without a server
+- **WHEN** `call tool --help` is run and nothing is listening
+- **THEN** the arguments are listed from the shared tools file
+
 #### Scenario: Help does not call the tool
 - **WHEN** `--help` is given
 - **THEN** the tool is not called
@@ -364,7 +386,7 @@ file paths, and lists.
 
 The `init` command SHALL convert its arguments with exactly the same rules as `call`: the same syntax,
 quoting, arrays, dotted names, dates, file paths, the `@` prefix, merge order, and failure behavior. The only
-difference SHALL be where the types come from: for `call`, the tool's input schema from the running server; for
+difference SHALL be where the types come from: for `call`, the tool's input schema from the shared tools file; for
 `init`, the MCP's settings schema, with a setting that has no declared type typed from its default value.
 
 #### Scenario: One implementation

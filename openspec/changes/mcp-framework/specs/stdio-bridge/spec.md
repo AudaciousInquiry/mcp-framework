@@ -13,6 +13,19 @@ created:
     prompt:/claude-code/d670cca5-e0f3-47c9-b239-7d358eabbeb6/~80990185-d187-4a21-8126-b18a46afb811
   summary: stdio-bridge spec for mcp-framework
 updated:
+  - date: '2026-11-23T22:12:36.794Z'
+    user: boonek
+    agent:
+      name: claude-code
+      version: unknown
+    llm:
+      name: claude-sonnet-5-5
+      version: '5.5'
+    prompt_uri: >-
+      prompt:/claude-code/d670cca5-e0f3-47c9-b239-7d358eabbeb6/~f3aee51d-0f37-49bb-8b66-3fda7fac7831
+    summary: >-
+      Reconcile stdio-bridge: failed forward triggers respawn, busy and
+      error-status cases, console redirect
   - date: '2026-11-23T15:35:54.032Z'
     user: boonek
     agent:
@@ -80,11 +93,17 @@ calls, and notifications SHALL flow through like any other message.
 ### Requirement: Standard output carries only protocol messages
 
 While running as a bridge, the process SHALL write nothing but protocol messages to standard output. All
-diagnostic text, including startup notices, SHALL go to standard error.
+diagnostic text, including startup notices, SHALL go to standard error. The framework SHALL redirect
+`console.log`, `console.info` and `console.debug` to standard error in bridge mode, so that code written by the
+MCP's author cannot corrupt the protocol stream.
 
 #### Scenario: Server started by the bridge
 - **WHEN** the bridge has to start the server
 - **THEN** the "server started" notice is written to standard error, not standard output
+
+#### Scenario: Stray print in plugin code
+- **WHEN** the start-up hook or other plugin code calls `console.log` while running as a bridge
+- **THEN** the text appears on standard error and standard output carries only protocol messages
 
 #### Scenario: Forwarding problem
 - **WHEN** a message cannot be forwarded
@@ -102,15 +121,19 @@ exits, because other clients may be using it.
 
 ### Requirement: Recover from server death without dropping the client
 
-When the connection to the server closes unexpectedly, the bridge SHALL restart the server, reconnect, and
-keep the client connected, so the client does not have to restart the MCP. A request that cannot be
+When forwarding a message fails because the server cannot be reached (the connection is refused or reset), the
+bridge SHALL restart the server, reconnect, and keep the client connected, so the client does not have to
+restart the MCP. The server holds no standing connection, so a failed forward is the signal. A request that
+times out because the server is busy, or that gets an HTTP error status, means the server is alive and SHALL NOT
+cause a restart. A request that cannot be
 completed because the server died, whether it was already in flight or arrives while the bridge is
 reconnecting, SHALL receive an error response carrying the same request id, so the client fails fast and
 can retry instead of waiting for its own timeout. The bridge SHALL NOT hold requests for later forwarding.
 
 #### Scenario: Server crashes between calls
-- **WHEN** the server dies while the client is idle, the bridge finishes reconnecting, and the client then sends a tool call
-- **THEN** the call is forwarded to the restarted server and its result is returned
+- **WHEN** the server dies while the client is idle and the client then sends a tool call
+- **THEN** that call receives an error response carrying its id and the bridge restarts the server
+- **AND** the next call is forwarded to the restarted server and its result is returned
 
 #### Scenario: Server crashes during a call
 - **WHEN** the server dies while a request is in flight
@@ -120,6 +143,14 @@ can retry instead of waiting for its own timeout. The bridge SHALL NOT hold requ
 - **WHEN** the client sends a request while the bridge is restarting the server
 - **THEN** the client receives an error response carrying that request's id right away, and the request is not forwarded later
 - **AND** requests sent after the reconnect completes succeed normally
+
+#### Scenario: Server busy
+- **WHEN** a forwarded request gets no answer within the timeout
+- **THEN** the client receives an error response carrying the request id and the server is not restarted
+
+#### Scenario: Server answers with an error status
+- **WHEN** the server answers a forwarded request with an HTTP error status such as 500
+- **THEN** the client receives an error response carrying the request id and the server is not restarted
 
 #### Scenario: Recovery fails
 - **WHEN** the server cannot be restarted within the respawn timeout
