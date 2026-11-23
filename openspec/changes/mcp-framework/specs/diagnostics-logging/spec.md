@@ -13,6 +13,19 @@ created:
     prompt:/claude-code/d670cca5-e0f3-47c9-b239-7d358eabbeb6/~80990185-d187-4a21-8126-b18a46afb811
   summary: diagnostics-logging spec for mcp-framework
 updated:
+  - date: '2026-11-23T20:09:08.105Z'
+    user: boonek
+    agent:
+      name: claude-code
+      version: unknown
+    llm:
+      name: claude-sonnet-5-5
+      version: '5.5'
+    prompt_uri: >-
+      prompt:/claude-code/d670cca5-e0f3-47c9-b239-7d358eabbeb6/~f8e179ac-6bee-4bae-b41b-941d801448f1
+    summary: >-
+      Add launcher --log-level option; precedence option, environment, setting,
+      default
   - date: '2026-11-23T14:13:31.658Z'
     user: boonek
     agent:
@@ -57,7 +70,9 @@ carry a timestamp, a level, the name of the part of the program that wrote it, a
 The log level SHALL default to `info` and SHALL be settable in the MCP's configuration as `log_level` with the
 values `trace`, `debug`, `info`, `warn`, and `error`. An environment variable named after the MCP SHALL
 override the setting for one run: the MCP name in upper case with dashes replaced by underscores, followed by
-`_LOG_LEVEL` (for example `MY_MCP_LOG_LEVEL` for `my-mcp`). The level SHALL apply in worker threads the MCP
+`_LOG_LEVEL` (for example `MY_MCP_LOG_LEVEL` for `my-mcp`). The launcher SHALL also accept `--log-level <level>`, which
+applies to the server that command starts and overrides both the environment variable and the setting; a
+server that is already running keeps its level. The level SHALL apply in worker threads the MCP
 starts as well as in the main thread.
 
 #### Scenario: Default
@@ -71,6 +86,14 @@ starts as well as in the main thread.
 #### Scenario: Environment override
 - **WHEN** the environment variable is set to `error` and the configuration says `debug`
 - **THEN** only `error` messages are written for that run
+
+#### Scenario: Launcher option
+- **WHEN** the launcher starts a server with `--log-level debug` while the environment variable says `error`
+- **THEN** that server writes `debug` messages
+
+#### Scenario: Option and a running server
+- **WHEN** the launcher is run with `--log-level debug` and a server is already running
+- **THEN** the running server keeps its level, and the launcher says the option was not applied and that a restart is needed
 
 #### Scenario: Invalid level
 - **WHEN** the level is not one of the five values

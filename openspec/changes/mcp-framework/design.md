@@ -15,6 +15,17 @@ created:
     Design draft with approved Decisions 1 and 2 (launcher entry point; two
     files with a server base class and detached spawn)
 updated:
+  - date: '2026-11-23T20:09:58.538Z'
+    user: boonek
+    agent:
+      name: claude-code
+      version: unknown
+    llm:
+      name: claude-sonnet-5-5
+      version: '5.5'
+    prompt_uri: >-
+      prompt:/claude-code/d670cca5-e0f3-47c9-b239-7d358eabbeb6/~54d054ac-2eb6-46e4-b974-6c8d63642996
+    summary: 'Add Decision 9 (logging), points 9.1 to 9.4 approved'
   - date: '2026-11-23T19:22:58.829Z'
     user: boonek
     agent:
@@ -124,7 +135,7 @@ change_request: mcp-framework
 ---
 # Design
 
-> **Status: draft in review.** Decisions 1 to 5 are approved, and Decisions 6, 7 and 8 are approved. The remaining decisions are reviewed with
+> **Status: draft in review.** Decisions 1 to 5 are approved, and Decisions 6, 7, 8 and 9 are approved. The remaining decisions are reviewed with
 > the user one at a time and added here as they are approved.
 
 ## Context
@@ -527,6 +538,33 @@ framework-defined object, `ctx`, with `ctx.config` (the merged configuration, wi
 defaults only when a user sets something, so that changed defaults reach everyone (rejected: first run writes the
 defaults); the `write-file-atomic` package; merging arrays; a configuration retrieval function separate from
 the hook object.
+
+### Decision 9: Logging
+
+Each point was approved on its own.
+
+**9.1 What writes the log.** `log4js`, chosen in Decision 3, behind one thin internal module that is the only
+code importing it. The file is `server.log` in the `logs` folder of the data directory. It rolls over daily and
+at 10 MB and keeps 7 old files, the values in use today.
+
+**9.2 The log level.** First match wins: the environment variable `<NAME>_LOG_LEVEL` (for `my-mcp`,
+`MY_MCP_LOG_LEVEL`), then `log_level` in `config.json`, then the default `info`. The values are `trace`, `debug`,
+`info`, `warn` and `error`, and an invalid value is an error naming the setting and the allowed values. Worker
+threads work the level out the same way from the same environment and file, so nothing is passed between threads.
+
+**9.3 The launcher option.** `--log-level <level>` applies to the server that command starts, including one the
+bridge respawns, and overrides the environment variable and the setting. A server that is already running keeps
+its level, and the launcher says the option was not applied and that a restart is needed.
+
+**9.4 The rest of logging.** Already in the specs, with no further design: named loggers for the plugin that
+write to the same file, format and level; stack traces for uncaught exceptions and unhandled rejections in the
+launcher, the server and the bridge before a non-zero exit; a start line and an end line with the duration for
+every tool call, made automatic by the `register` helper from Decision 4; and the debug mirror to standard error
+from 6.9.
+
+**Alternatives considered:** `winston` (its rotation module has had no release within the 12-month rule), `pino`
+with a roll module (same finding); `rotating-file-stream` as a replacement if `log4js` ever has to go, behind the
+same internal module.
 
 ## Risks / Trade-offs
 
