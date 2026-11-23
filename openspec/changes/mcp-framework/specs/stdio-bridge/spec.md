@@ -13,6 +13,17 @@ created:
     prompt:/claude-code/d670cca5-e0f3-47c9-b239-7d358eabbeb6/~80990185-d187-4a21-8126-b18a46afb811
   summary: stdio-bridge spec for mcp-framework
 updated:
+  - date: '2026-11-23T15:35:54.032Z'
+    user: boonek
+    agent:
+      name: claude-code
+      version: unknown
+    llm:
+      name: claude-sonnet-5-5
+      version: '5.5'
+    prompt_uri: >-
+      prompt:/claude-code/d670cca5-e0f3-47c9-b239-7d358eabbeb6/~6d7ab145-3d21-4ab9-86d0-f139b2710742
+    summary: Bridge start-up hook runs again after every respawn
   - date: '2026-11-20T22:39:17.832Z'
     user: boonek
     agent:
@@ -120,13 +131,17 @@ can retry instead of waiting for its own timeout. The bridge SHALL NOT hold requ
 
 ### Requirement: Start-up hook for the plugin
 
-The framework SHALL let the MCP supply a function that runs once, after the server is healthy and before the
-bridge begins forwarding, with access to the server's tools through the same client interface the command
+The framework SHALL let the MCP supply a function that runs after the server is healthy and before the
+bridge begins forwarding, and again each time the bridge has restarted the server, with access to the server's tools through the same client interface the command
 line uses. A failure in this function SHALL be logged and SHALL NOT prevent the bridge from starting.
 
 #### Scenario: Hook runs first
 - **WHEN** the MCP supplied a bridge start-up hook
 - **THEN** the hook completes before the first client message is forwarded
+
+#### Scenario: Hook runs again after a respawn
+- **WHEN** the bridge restarts a server that died
+- **THEN** the hook runs again once the new server is healthy and before forwarding resumes, so state the hook set up on the server is restored
 
 #### Scenario: Hook fails
 - **WHEN** the hook throws

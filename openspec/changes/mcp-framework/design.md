@@ -15,6 +15,17 @@ created:
     Design draft with approved Decisions 1 and 2 (launcher entry point; two
     files with a server base class and detached spawn)
 updated:
+  - date: '2026-11-23T16:08:32.113Z'
+    user: boonek
+    agent:
+      name: claude-code
+      version: unknown
+    llm:
+      name: claude-sonnet-5-5
+      version: '5.5'
+    prompt_uri: >-
+      prompt:/claude-code/d670cca5-e0f3-47c9-b239-7d358eabbeb6/~8eff0aec-0cfd-483d-acb0-89f5578088c2
+    summary: 'Add Decision 7 (stdio bridge), points 7.1 to 7.5 approved'
   - date: '2026-11-23T14:13:26.259Z'
     user: boonek
     agent:
@@ -102,7 +113,7 @@ change_request: mcp-framework
 ---
 # Design
 
-> **Status: draft in review.** Decisions 1 to 5 are approved, and Decision 6 is approved. The remaining decisions are reviewed with
+> **Status: draft in review.** Decisions 1 to 5 are approved, and Decisions 6 and 7 are approved. The remaining decisions are reviewed with
 > the user one at a time and added here as they are approved.
 
 ## Context
@@ -422,6 +433,48 @@ is ignored; and lines appearing in a real terminal window is a manual step in th
 lock file for single instance; looking up the port's owner with `netstat` or `lsof`; `taskkill` or a tree-kill
 library (not needed for one process with worker threads; a plugin that spawns its own children cleans them up in
 `shutdown`).
+
+### Decision 7: The stdio bridge
+
+Each point was approved on its own.
+
+**7.1 How the bridge learns the server is gone.** The SDK's HTTP client transport calls `onclose` only when the
+bridge closes it itself, never when the server dies, and the server is stateless, so there is no standing
+connection to lose. A bridge that waited for a close event, as the one this is extracted from does, would never
+recover. The trigger is a failed forward instead. When forwarding a request fails at the connection level, the
+bridge answers that request at once with an error response carrying its id, and starts one respawn, guarded by a
+flag so that only one runs at a time. Requests that arrive during the respawn get the same immediate error.
+Forwarding resumes when the server is healthy. A failed notification has no id and is only logged.
+
+**7.2 What does the forwarding.** The SDK's HTTP client transport, which the source bridge also uses, with the
+SDK's stdio server transport on the client side. A server reply can arrive as plain JSON or as an event
+stream, and the transport handles both. It also accepts the 405 that stateless mode gives to a request for a
+standing stream. The bridge adds no protocol logic.
+
+**7.3 Which failures mean the server is gone.** Connection refused or reset: respawn. A connection that is
+accepted but gets no answer: the server is busy, so reply with an error and do not respawn. An HTTP error
+status such as 500, 413 or 403: the server is alive and said no, so reply with an error and do not respawn.
+This is the same rule as the health probe in 6.1, so the bridge never starts a second server on a busy one.
+
+**7.4 Keeping standard output clean.** In bridge mode the framework replaces `console.log`, `console.info` and
+`console.debug` with writers to standard error before any author code runs, so a stray print in the start-up
+hook or in plugin code cannot corrupt the protocol stream. The SDK's stdio transport writes to the real
+standard output directly and is not affected.
+
+**7.5 The rest of the bridge.** Already in the spec, with no further design: the bridge runs until the client
+closes standard input and then exits with status zero without stopping the server; it makes sure a server is
+running using the launcher's start path (6.1 and 6.2) and waits for it to be healthy, and on failure writes the
+reason to standard error and exits non-zero without writing to standard output; and the start-up hook runs
+once the server is healthy and again after each respawn.
+
+**State a plugin needs per agent session.** The framework has no session concept. A plugin that must know who
+is calling, as md-csv-mcp does by registering the agent session through a tool call at start-up, does that in
+the start-up hook and keeps what it registers in its own storage. That is part of the migration, not of the
+framework.
+
+**Alternatives considered:** waiting for a close event from the transport (never fires, above); writing the
+forwarding with plain `fetch` (needs event-stream parsing the SDK already does); relying on authors never to
+print to standard output.
 
 ## Risks / Trade-offs
 
