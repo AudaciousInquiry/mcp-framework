@@ -15,6 +15,19 @@ created:
     Design draft with approved Decisions 1 and 2 (launcher entry point; two
     files with a server base class and detached spawn)
 updated:
+  - date: '2026-11-23T22:19:14.550Z'
+    user: boonek
+    agent:
+      name: claude-code
+      version: unknown
+    llm:
+      name: claude-sonnet-5-5
+      version: '5.5'
+    prompt_uri: >-
+      prompt:/claude-code/d670cca5-e0f3-47c9-b239-7d358eabbeb6/~26bbf083-4fb1-4193-98de-b26c7120283f
+    summary: >-
+      Record the idle-crash behaviour, the retry that was left out, and the
+      first migration candidate
   - date: '2026-11-23T21:34:10.497Z'
     user: boonek
     agent:
@@ -490,7 +503,12 @@ connection to lose. A bridge that waited for a close event, as the one this is e
 recover. The trigger is a failed forward instead. When forwarding a request fails at the connection level, the
 bridge answers that request at once with an error response carrying its id, and starts one respawn, guarded by a
 flag so that only one runs at a time. Requests that arrive during the respawn get the same immediate error.
-Forwarding resumes when the server is healthy. A failed notification has no id and is only logged.
+Forwarding resumes when the server is healthy. A failed notification has no id and is only logged. One
+consequence: when the server dies while the client is idle, the first call afterwards gets the error and the
+next one succeeds. Retrying the failed request once after the restart was considered (it is safe when the
+connection was refused, because nothing was delivered, and unsafe after a reset in mid-request) and left out for
+now. It is worth revisiting once a real MCP has been moved onto the framework. That migration is a separate
+change request, and ecfr-mcp, the simplest of the existing MCPs, is the proposed first one.
 
 **7.2 What does the forwarding.** The SDK's HTTP client transport, which the source bridge also uses, with the
 SDK's stdio server transport on the client side. A server reply can arrive as plain JSON or as an event
