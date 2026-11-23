@@ -15,6 +15,30 @@ created:
     Design draft with approved Decisions 1 and 2 (launcher entry point; two
     files with a server base class and detached spawn)
 updated:
+  - date: '2026-11-23T14:13:26.259Z'
+    user: boonek
+    agent:
+      name: claude-code
+      version: unknown
+    llm:
+      name: claude-sonnet-5-5
+      version: '5.5'
+    prompt_uri: >-
+      prompt:/claude-code/d670cca5-e0f3-47c9-b239-7d358eabbeb6/~2c55edeb-4548-4656-9210-b0d58b24d1cb
+    summary: 'Add 6.9: stderr always inherited, stdout ignored; align Decision 2 and 6.3'
+  - date: '2026-11-23T14:04:52.119Z'
+    user: boonek
+    agent:
+      name: claude-code
+      version: unknown
+    llm:
+      name: claude-sonnet-5-5
+      version: '5.5'
+    prompt_uri: >-
+      prompt:/claude-code/d670cca5-e0f3-47c9-b239-7d358eabbeb6/~cf673bed-fd67-4853-8a3e-d2b2bb9529b1
+    summary: >-
+      Correct 6.3 rationale: rests on observed behaviour, not on a claim of no
+      console
   - date: '2026-11-22T23:42:15.604Z'
     user: boonek
     agent:
@@ -78,7 +102,7 @@ change_request: mcp-framework
 ---
 # Design
 
-> **Status: draft in review.** Decisions 1 to 5 are approved, and Decision 6 is approved except the debug option (6.9). The remaining decisions are reviewed with
+> **Status: draft in review.** Decisions 1 to 5 are approved, and Decision 6 is approved. The remaining decisions are reviewed with
 > the user one at a time and added here as they are approved.
 
 ## Context
@@ -176,8 +200,9 @@ Details:
 - **Name and version:** the framework reads both from the MCP's own `package.json`, so they cannot drift from
   the package.
 - **Starting the server:** the launcher uses detached `spawn` of `process.execPath` with the optional
-  `nodeArgs` placed before the script path, the server's standard error going to a log file, and `unref` so
-  the server outlives the launcher. Node ignores a runtime option such as the heap limit if it comes after
+  `nodeArgs` placed before the script path, the server's standard output ignored and its standard error
+  inherited from the launcher (so the server's logging configuration decides where output goes), and `unref`
+  so the server outlives the launcher. Node ignores a runtime option such as the heap limit if it comes after
   the script path, which is why `nodeArgs` goes first.
 
 **Alternatives considered:**
@@ -338,9 +363,11 @@ file appears (the server writes it only after binding), or the startup timeout p
 file and probes once more, in case a file-watch event was missed, then reports the timeout, names the process id
 and the log file, leaves the server running, and exits non-zero. There is no polling loop and no kill.
 
-**6.3 Windows console window: dropped.** A detached child on Windows is created without a console, and the server
-writes nothing to standard output or standard error except the log file, so there is nothing to hide.
-`windowsHide` is not used.
+**6.3 Windows console window: dropped.** The server writes nothing to standard output, its standard error is
+whatever the logging configuration sends there (6.9), and the launcher this is extracted from starts its server detached without `windowsHide` and has
+shown no console-window problem in use. `windowsHide` is not used. (Node's documentation says a detached child on
+Windows has its own console window; whether one is ever visible was not established by test, so this rests on
+the observed behaviour above.)
 
 **6.4 Simultaneous starts: no special handling.** Starts overlap rarely, since an agent is started and waited for
 one at a time. The port-in-use handling from Decision 5 covers it: a second server that finds the port taken
@@ -375,6 +402,21 @@ reusing a process id, which is too unlikely to design around.
 **6.8 Version compare.** A function of about eight lines compares major, minor and patch in order and ignores
 any suffix, as the spec requires. The `semver` package was not used: it ranks a pre-release below its release,
 which would change the approved behaviour, and Decision 3 keeps the dependency list short.
+
+**6.9 Server output and the debug option.** The server's standard output is ignored, and its standard error is
+always inherited from the launcher. The server's logging configuration, not the launcher, decides where output
+goes: the logger writes to its configured file, and with the debug option it also writes to standard error,
+which appears on the console the launcher was run from. A crash before the logger exists prints to the same
+inherited standard error. The server ignores errors writing to standard error, so a closed terminal never stops
+it. A start-up capture file owned by the launcher was rejected because it takes the choice of destination away
+from the server's logging configuration.
+
+Consequence, stated in the README: when the launcher's standard error is read through a pipe, for example by a
+script or a tool that captures its output, the reader does not see the end of the output until the server
+stops, because the server holds that pipe open. At a console there is nothing to wait for.
+
+Tests claim only what they check: log lines are mirrored to a connected standard error; a closed standard error
+is ignored; and lines appearing in a real terminal window is a manual step in the Windows release checklist.
 
 **Alternatives considered:** polling `/health` every 200 ms (replaced by waiting for the process id file); a
 lock file for single instance; looking up the port's owner with `netstat` or `lsof`; `taskkill` or a tree-kill

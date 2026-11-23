@@ -13,6 +13,19 @@ created:
     prompt:/claude-code/d670cca5-e0f3-47c9-b239-7d358eabbeb6/~80990185-d187-4a21-8126-b18a46afb811
   summary: daemon-lifecycle spec for mcp-framework
 updated:
+  - date: '2026-11-23T14:13:29.028Z'
+    user: boonek
+    agent:
+      name: claude-code
+      version: unknown
+    llm:
+      name: claude-sonnet-5-5
+      version: '5.5'
+    prompt_uri: >-
+      prompt:/claude-code/d670cca5-e0f3-47c9-b239-7d358eabbeb6/~2c55edeb-4548-4656-9210-b0d58b24d1cb
+    summary: >-
+      Server standard error is inherited from the launcher, not captured to a
+      file
   - date: '2026-11-21T17:33:20.737Z'
     user: boonek
     agent:
@@ -98,9 +111,10 @@ success. The launcher SHALL NOT report success until the server is healthy.
 - **THEN** the launcher reports the timeout, says the server may still be starting, names its process id and the log file, and exits non-zero
 - **AND** the process it started is left running, because only an explicit stop or restart ends a server
 
-#### Scenario: Server output is captured
+#### Scenario: Server output
 - **WHEN** the server is started in the background
-- **THEN** its standard error is appended to a log file in the MCP's data directory, so a startup failure leaves a trace
+- **THEN** its standard output is discarded and its standard error is the launcher's own standard error
+- **AND** where the server's log lines go is decided by the server's logging configuration, so a failure before the logger starts appears on the console the launcher was run from
 
 ### Requirement: Single instance per port
 

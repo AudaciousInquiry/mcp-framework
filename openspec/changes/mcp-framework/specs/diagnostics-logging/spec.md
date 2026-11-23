@@ -12,7 +12,20 @@ created:
   prompt_uri: >-
     prompt:/claude-code/d670cca5-e0f3-47c9-b239-7d358eabbeb6/~80990185-d187-4a21-8126-b18a46afb811
   summary: diagnostics-logging spec for mcp-framework
-updated: []
+updated:
+  - date: '2026-11-23T14:13:31.658Z'
+    user: boonek
+    agent:
+      name: claude-code
+      version: unknown
+    llm:
+      name: claude-sonnet-5-5
+      version: '5.5'
+    prompt_uri: >-
+      prompt:/claude-code/d670cca5-e0f3-47c9-b239-7d358eabbeb6/~2c55edeb-4548-4656-9210-b0d58b24d1cb
+    summary: >-
+      No captured standard error file; trace goes to log or inherited standard
+      error
 change_request: mcp-framework
 ---
 ## ADDED Requirements
@@ -101,7 +114,7 @@ the main startup chain, such as in a timer or a callback that nobody awaits, SHA
 
 #### Scenario: Server started in the background
 - **WHEN** a background server dies from such an error
-- **THEN** the trace is in the log file or in the captured standard error file, so the cause can be found afterwards
+- **THEN** the trace is in the log file, or on the standard error the server inherited from the launcher, so the cause can be found afterwards
 
 ### Requirement: Tool and request timing is logged
 
