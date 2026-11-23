@@ -15,6 +15,17 @@ created:
     Design draft with approved Decisions 1 and 2 (launcher entry point; two
     files with a server base class and detached spawn)
 updated:
+  - date: '2026-11-23T20:30:09.165Z'
+    user: boonek
+    agent:
+      name: claude-code
+      version: unknown
+    llm:
+      name: claude-sonnet-5-5
+      version: '5.5'
+    prompt_uri: >-
+      prompt:/claude-code/d670cca5-e0f3-47c9-b239-7d358eabbeb6/~28f32324-b8ec-4e55-b24b-c9e2f6126c45
+    summary: 'Add Decision 10 (testing), points 10.1 to 10.5 approved'
   - date: '2026-11-23T20:09:58.538Z'
     user: boonek
     agent:
@@ -135,7 +146,7 @@ change_request: mcp-framework
 ---
 # Design
 
-> **Status: draft in review.** Decisions 1 to 5 are approved, and Decisions 6, 7, 8 and 9 are approved. The remaining decisions are reviewed with
+> **Status: draft in review.** Decisions 1 to 5 are approved, and Decisions 1 to 10 are approved. The remaining decisions are reviewed with
 > the user one at a time and added here as they are approved.
 
 ## Context
@@ -565,6 +576,44 @@ from 6.9.
 **Alternatives considered:** `winston` (its rotation module has had no release within the 12-month rule), `pino`
 with a roll module (same finding); `rotating-file-stream` as a replacement if `log4js` ever has to go, behind the
 same internal module.
+
+### Decision 10: Testing
+
+Each point was approved on its own.
+
+**10.1 The test runner.** Node's built-in `node:test` with `node:assert`, run with `node --test` over a `test/`
+folder. There is no test framework dependency and no build step.
+
+**10.2 What is tested and how.** Two layers, and each test claims only what it checks. Unit tests cover the pure
+pieces without processes: the argument parser, dates and relative dates, comma splitting and quoting, the
+configuration merge, and the version compare. Real-process tests cover everything that involves a server, with
+no mocks, because a mock of `spawn` and `http` would not show what actually breaks (ports, detached children,
+files). A small stand-in MCP in `test/fixtures/`, written with the framework as an author would, is started as
+a real detached server. These tests cover: start and the `/health` fields; a start while the same version runs;
+replacing an older server and refusing to replace a newer one; a port held by another program; stop, graceful
+and with the kill fallback; the bridge forwarding a message and recovering after the server is killed;
+first-run and corrupt configuration; and the Origin and Host refusals and the 1 MB limit.
+
+**10.3 Isolation.** Each test gets its own temporary folder and starts its processes with `HOME` and
+`USERPROFILE` pointing at it (checked: `os.homedir()` follows `USERPROFILE` on Windows), so no special test
+setting is needed in the framework and a test never touches the real `~/.mcp` or a running server. Each test
+picks its own free port, writes it into that configuration, and stops its servers and deletes its folder even
+when it fails.
+
+**10.4 CI.** A `test.yml` that runs on push and pull request and can be called by the publish workflow, on
+`ubuntu-latest` only, with Node 22 (the minimum supported) and Node 24 (as in the sibling repository). Steps:
+`npm ci`, `npm audit fix`, `npm audit --audit-level=high`, `npm test`. Windows and macOS are not in CI: the
+failures that matter are the broad, non-platform ones, and the developer runs `npm test` on Windows before a
+release.
+
+**10.5 The release checklist.** `RELEASING.md`, run before each release: `npm test` passes on the developer's
+Windows machine; with the debug option the log lines appear in a real terminal window (6.9); the stand-in MCP,
+registered with a real client over stdio and over HTTP, answers a tool call; and the README's integration steps,
+followed exactly in a clean folder, produce a working MCP. The release tasks are the last steps in `tasks.md`.
+
+**Alternatives considered:** a test framework such as Jest or Vitest (a dependency and, for Vitest, a build-style
+configuration, for no gain over `node:test`); mocking `spawn` and `http` for the lifecycle tests; a Windows CI
+job.
 
 ## Risks / Trade-offs
 
