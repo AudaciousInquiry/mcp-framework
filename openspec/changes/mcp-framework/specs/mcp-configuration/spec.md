@@ -13,6 +13,32 @@ created:
     prompt:/claude-code/d670cca5-e0f3-47c9-b239-7d358eabbeb6/~80990185-d187-4a21-8126-b18a46afb811
   summary: mcp-configuration spec for mcp-framework
 updated:
+  - date: '2026-11-23T19:00:55.954Z'
+    user: boonek
+    agent:
+      name: claude-code
+      version: unknown
+    llm:
+      name: claude-sonnet-5-5
+      version: '5.5'
+    prompt_uri: >-
+      prompt:/claude-code/d670cca5-e0f3-47c9-b239-7d358eabbeb6/~0f71d015-1678-4f48-8b79-a1b94ba8045d
+    summary: >-
+      Save function: no argument stores current config; with an update it is
+      apply-or-nothing; init uses it
+  - date: '2026-11-23T16:20:10.935Z'
+    user: boonek
+    agent:
+      name: claude-code
+      version: unknown
+    llm:
+      name: claude-sonnet-5-5
+      version: '5.5'
+    prompt_uri: >-
+      prompt:/claude-code/d670cca5-e0f3-47c9-b239-7d358eabbeb6/~71239349-b897-4f83-9ab3-268e9d4b07ec
+    summary: >-
+      Only the launcher side writes config.json on first run; the server only
+      reads
   - date: '2026-11-21T17:31:02.597Z'
     user: boonek
     agent:
@@ -60,9 +86,13 @@ Each MCP SHALL have its own data directory, `.mcp/<mcp-name>/` under the user's 
 configuration file `config.json`, its process id file, and its logs. The framework SHALL create the directory
 when it is first needed. The directory and file of one MCP SHALL NOT be shared with another.
 
-#### Scenario: First run
-- **WHEN** an MCP's configuration is loaded and no configuration file exists
+#### Scenario: First run from the launcher side
+- **WHEN** the launcher, the bridge, or a command-line command loads the configuration and no configuration file exists
 - **THEN** the data directory is created and a configuration file holding the defaults is written
+
+#### Scenario: The server never creates the file
+- **WHEN** the server loads the configuration and no configuration file exists
+- **THEN** it uses the defaults in memory, creates only the data directory it needs, and does not write the configuration file
 
 #### Scenario: Two MCPs
 - **WHEN** two MCPs built on the framework run on the same machine
@@ -106,14 +136,25 @@ objects SHALL be merged key by key. Keys in the file that the defaults do not me
 
 ### Requirement: Saving updates
 
-The framework SHALL provide a way to save a partial set of settings, merging them into the stored
-configuration and returning the full result. The MCP MAY supply a function that validates or normalizes
-updates, such as clamping a number to a minimum or rejecting a bad value, and the framework SHALL apply it
-before writing. A write SHALL NOT leave a truncated file if the process stops part way through.
+The framework SHALL provide a save function that an implementer can call, and the command-line `init` SHALL use
+the same function. Called with no argument it stores the current configuration, including changes the
+implementer made in place. Called with a partial set of settings it merges them into a copy of the current
+configuration, and updates the in-memory configuration only after the copy has been validated and written.
+Either form returns the full result. The MCP MAY supply a function that validates or normalizes the
+configuration, such as clamping a number to a minimum or rejecting a bad value, and the framework SHALL apply
+it before writing. A write SHALL NOT leave a truncated file if the process stops part way through.
 
 #### Scenario: Partial update
 - **WHEN** an update sets one setting
 - **THEN** every other stored setting is unchanged and the full configuration is returned
+
+#### Scenario: Save the current configuration
+- **WHEN** the implementer changes a setting in the loaded configuration and calls save with no argument
+- **THEN** the file holds the changed configuration and the full configuration is returned
+
+#### Scenario: Rejected update changes nothing
+- **WHEN** save is called with an update that the MCP's function rejects
+- **THEN** nothing is written and the in-memory configuration is unchanged
 
 #### Scenario: Zero is a real value
 - **WHEN** an update sets a numeric setting to 0

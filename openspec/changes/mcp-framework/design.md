@@ -15,6 +15,17 @@ created:
     Design draft with approved Decisions 1 and 2 (launcher entry point; two
     files with a server base class and detached spawn)
 updated:
+  - date: '2026-11-23T19:22:58.829Z'
+    user: boonek
+    agent:
+      name: claude-code
+      version: unknown
+    llm:
+      name: claude-sonnet-5-5
+      version: '5.5'
+    prompt_uri: >-
+      prompt:/claude-code/d670cca5-e0f3-47c9-b239-7d358eabbeb6/~60b38273-84ec-470a-af53-51fe67c401bb
+    summary: 'Add Decision 8 (configuration file handling), points 8.1 to 8.5 approved'
   - date: '2026-11-23T16:08:32.113Z'
     user: boonek
     agent:
@@ -113,7 +124,7 @@ change_request: mcp-framework
 ---
 # Design
 
-> **Status: draft in review.** Decisions 1 to 5 are approved, and Decisions 6 and 7 are approved. The remaining decisions are reviewed with
+> **Status: draft in review.** Decisions 1 to 5 are approved, and Decisions 6, 7 and 8 are approved. The remaining decisions are reviewed with
 > the user one at a time and added here as they are approved.
 
 ## Context
@@ -475,6 +486,47 @@ framework.
 **Alternatives considered:** waiting for a close event from the transport (never fires, above); writing the
 forwarding with plain `fetch` (needs event-stream parsing the SDK already does); relying on authors never to
 print to standard output.
+
+### Decision 8: Configuration file handling
+
+Each point was approved on its own.
+
+**8.1 Where it lives.** `~/.mcp/<name>/config.json`, where `<name>` is the MCP's `package.json` name. The data
+directory, the process id file and the log file are in the same folder.
+
+**8.2 Writing the file.** Two cases, both our own code with no library. Creating the file on first run uses the
+exclusive-create flag (`wx`): if two processes try at once, one succeeds and the other gets `EEXIST`, ignores it
+and reads the file. Saving over an existing file writes a temporary file in the same folder and renames it over
+`config.json`, so a reader sees either the whole old file or the whole new one. A reader could in theory see a
+new file a moment before its writer finishes; the file is a few hundred bytes written in one call, so this is
+accepted.
+
+**First run is written by the launcher side only.** The launcher, the bridge and the command-line commands write
+the defaults when the file is missing. The server only reads: with no file it uses the defaults in memory and
+creates only the data directory it needs. A user whose file holds a default that a later version changes keeps
+the old value, because stored values win; the README says so.
+
+**8.3 The save function.** One function that an implementer can call, which `init` also uses. With no argument it
+stores the current configuration, including changes made in place. With a partial set of settings it merges
+them into a copy, validates the copy, writes it, and only then updates the in-memory configuration, so a
+rejected update changes nothing. The MCP may supply a function that validates or normalizes the configuration.
+The framework promises no further plugin-facing save API: a command such as md-csv-mcp's `--enable-bi` is
+written in that MCP's migration and calls this function.
+
+**8.4 Merging.** Stored values are merged over the defaults with a small function of our own (about fifteen
+lines). Nested objects merge key by key; arrays are replaced whole, since merging two lists would mean guessing
+what the user meant; a stored `0`, `false` or `null` is a real value; unknown keys are kept and written back.
+
+**8.5 Getting at the configuration.** There is no separate retrieval function and no hot reload; the server reads
+its configuration once at start and a changed setting takes effect on restart. In the server, the object passed
+to `startup` is also `this.config` on the base class, next to `this.log`. Each launcher hook receives one
+framework-defined object, `ctx`, with `ctx.config` (the merged configuration, with the save function),
+`ctx.client` (calls the server's tools, as the command line does) and `ctx.log`.
+
+**Alternatives considered:** the server writing the file on first run (a race between processes); writing
+defaults only when a user sets something, so that changed defaults reach everyone (rejected: first run writes the
+defaults); the `write-file-atomic` package; merging arrays; a configuration retrieval function separate from
+the hook object.
 
 ## Risks / Trade-offs
 
