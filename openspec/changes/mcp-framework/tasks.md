@@ -15,7 +15,7 @@ created:
     Implementation tasks for mcp-framework, tests and docs per group, release
     last
 updated:
-  - date: '2026-11-24T04:35:48.323Z'
+  - date: '2026-11-24T04:47:04.192Z'
     user: boonek
     agent:
       name: claude-code
@@ -27,7 +27,8 @@ updated:
       prompt:/claude-code/d670cca5-e0f3-47c9-b239-7d358eabbeb6/~9e7343b6-3205-4e29-8416-e3780929ded3
     summary: >-
       Groups 1 to 3 complete; Tasks 4.1-4.6 and 5.1-5.3 done; Group 5 and 6
-      complete; Group 7 complete, task 4.7 done; Groups 8 and 9 complete
+      complete; Group 7 complete, task 4.7 done; Groups 8 and 9 complete; Group
+      10 complete
   - date: '2026-11-24T00:05:01.422Z'
     user: boonek
     agent:
@@ -138,10 +139,10 @@ README, whose final assembly is group 13. The release tasks are the last group.
 
 ## 10. The init command
 
-- [ ] 10.1 Write `init [json|@file] [arguments]` typed from the settings Zod schema (and from the default's type when none is declared), working without a server, saving through the save function, with unknown settings suggested and nothing saved on error; verify tests for JSON, arguments, both together, nested settings, unknown and wrong-type settings
-- [ ] 10.2 Write the prompts (`readline/promises`) for settings declared promptable, Enter keeping the value and an invalid answer saving nothing; verify tests with piped standard input
-- [ ] 10.3 Print the resulting configuration and how to start and register the server over stdio and HTTP, and write `init --help`; verify tests for the output
-- [ ] 10.4 Document `init` in the README; verify the examples run against the fixture
+- [x] 10.1 Write `init [json|@file] [arguments]` typed from the settings Zod schema (and from the default's type when none is declared), working without a server, saving through the save function, with unknown settings suggested and nothing saved on error; verify tests for JSON, arguments, both together, nested settings, unknown and wrong-type settings
+- [x] 10.2 Write the prompts (`readline/promises`) for settings declared promptable, Enter keeping the value and an invalid answer saving nothing; verify tests with piped standard input
+- [x] 10.3 Print the resulting configuration and how to start and register the server over stdio and HTTP, and write `init --help`; verify tests for the output
+- [x] 10.4 Document `init` in the README; verify the examples run against the fixture
 
 ## 11. The stdio bridge
 

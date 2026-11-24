@@ -299,12 +299,13 @@ function setAtPath(root, segments, value, flagLabel) {
  * @param {Array<{name: string, value: string}>} options.flags from parseTokens
  * @param {object} [options.base] JSON object applied first
  * @param {string} [options.label] what the schema describes, for messages (for example `tool "echo"`)
+ * @param {string} [options.unknownAs] replaces "an argument of <label>" in the unknown-name message
  * @param {string} [options.cwd]
  * @param {Date} [options.now]
  * @param {Function} [options.readFile]
  * @returns {object}
  */
-function buildArguments({ schema, flags, base = {}, label = 'the arguments', cwd = process.cwd(), now, readFile }) {
+function buildArguments({ schema, flags, base = {}, label = 'the arguments', unknownAs, cwd = process.cwd(), now, readFile }) {
   const result = JSON.parse(JSON.stringify(base));
   const ctx = { cwd, now, readFile };
   const seen = new Set();
@@ -323,7 +324,7 @@ function buildArguments({ schema, flags, base = {}, label = 'the arguments', cwd
         const prefix = resolved.at ? `${resolved.at}.` : '';
         const hint = near ? `; did you mean --${prefix}${near}?` : '';
         const valid = resolved.valid.length ? ` Valid names here: ${resolved.valid.map((v) => `--${prefix}${v}`).join(', ')}.` : '';
-        throw fail(`${flagLabel} is not an argument of ${label}${hint}${near ? '' : valid}`);
+        throw fail(`${flagLabel} is not ${unknownAs || `an argument of ${label}`}${hint}${near ? '' : valid}`);
       }
       if (resolved.error === 'index') throw fail(`${flagLabel}: "${resolved.segment}" is not a list position`);
       throw fail(`${flagLabel}: ${resolved.at || f.segments[0]} is not an object`);

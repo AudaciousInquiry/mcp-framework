@@ -157,3 +157,27 @@ test('the splitters behave as the shells do', () => {
   assert.deepStrictEqual(splitCmd(`--title C:\\Users\\me\\notes.md`), ['--title', 'C:\\Users\\me\\notes.md']);
   assert.deepStrictEqual(splitCmd(`--tags ""`), ['--tags', '']);
 });
+
+test('every README init example runs against the fixture', async (t) => {
+  const h = tempHome(); t.after(h.restore);
+  const { Readable } = require('node:stream');
+  const text = fs.readFileSync(README, 'utf8');
+  const section = text.slice(text.indexOf('### The `init` command'));
+  const block = /```sh\n([\s\S]*?)```/.exec(section)[1];
+  const lines = block.split(/\r?\n/).filter((l) => l.startsWith('node index.js init'));
+  assert.ok(lines.length >= 5, `found ${lines.length} init examples`);
+  const cwd = fs.mkdtempSync(path.join(h.home, 'work-'));
+  fs.writeFileSync(path.join(cwd, 'settings.json'), '{"port":7599}');
+  for (const line of lines) {
+    const args = splitPosix(line.replace(/^node index\.js /, ''));
+    const out = []; const err = [];
+    const code = await launch(
+      { defaultPort: 7561, tools: require('./fixtures/example-mcp/tools') },
+      args,
+      { out: (m) => out.push(m), err: (m) => err.push(m), stdin: Readable.from(['']), prompt: () => {} },
+      FIXTURE, 'index.js', cwd
+    );
+    assert.strictEqual(code, 0, `${line}\n${err.join('\n')}`);
+    assert.ok(out.join('\n').length > 0, line);
+  }
+});

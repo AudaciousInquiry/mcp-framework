@@ -1,7 +1,7 @@
 ---
 schema_version: '1.0'
 updated:
-  - date: '2026-11-24T04:35:04.068Z'
+  - date: '2026-11-24T04:46:43.843Z'
     user: boonek
     agent:
       name: claude-code
@@ -14,7 +14,8 @@ updated:
     summary: >-
       README configuration section; README sections: writing tools, the server
       class; README sections: launcher, logging, things worth knowing; README:
-      the command line and argument mapping
+      the command line and argument mapping; README: init command, more
+      definition fields
 change_request: mcp-framework
 created:
   date: '2026-11-24T04:02:27.000Z'
@@ -47,6 +48,10 @@ runLauncher({ defaultPort: 7561 });
 | `defaults` | Extra default settings, merged with `port` and written to `config.json` on first run. |
 | `validate` | A function that validates or normalizes a configuration before it is saved. Return a replacement, or throw to reject. |
 | `options` | Extra launcher options: `[{ name: '--rebuild', description: 'Rebuild the index', handler }]`. They appear in `--help`. A name the framework reserves fails at start-up. |
+| `tools` | The tools from your shared tools file (`require('./tools')`). `list` and `call` read their schemas from it, so they need no server. |
+| `settings` | A Zod object schema for your settings. It types the arguments to `init`. |
+| `promptable` | Names of extra settings `init` asks about when run with no arguments. |
+| `defaultArguments` | `(toolName, args, ctx) => args`: adjust a `call`'s arguments before it is sent. A value the user typed is never overwritten. |
 
 The MCP's name and version are read from its own `package.json`. The name must be usable as a directory name and
 the version must be semver; the launcher fails with a message naming the field otherwise. The launcher also
@@ -271,6 +276,32 @@ of your MCP changes as a default keeps the old value.
 including changes made in place. `config.save({ setting: value })` merges the update into a copy, runs your
 `validate` function (return a normalized copy, or throw to reject), writes the file by temporary file and rename,
 and only then updates the object in memory. A rejected update changes nothing.
+
+### The `init` command
+
+`init` shows or changes the settings in `config.json`. It works without a running server and never starts one. It
+uses the same `save` function as your code, so your `validate` function applies.
+
+```sh
+node index.js init --port 7562
+node index.js init '{"port":7562,"log_level":"debug"}'
+node index.js init @settings.json --log_level info
+node index.js init
+node index.js init --help
+```
+
+- **With settings** (as JSON, an `@file`, `--name value` flags, or JSON with flags on top) they are converted by
+  exactly the rules `call` uses, saved without prompting, and the resulting configuration is printed. The types
+  come from the `settings` Zod schema in the launcher definition and from the framework's own settings; a setting
+  with no declared type is typed from its default (`false` makes it a boolean; a `null` default makes it a string).
+  An unknown setting is refused with a suggestion for a near miss, and a wrong type or a value your `validate`
+  rejects saves nothing.
+- **With no settings**, `init` asks about each promptable setting (`port` and `log_level`, plus any names in your
+  definition's `promptable` list), showing the current value in brackets. Press Enter to keep it. An invalid answer
+  is reported and nothing is saved.
+- **`init --help`** lists every setting as written on the command line, with its type, default and description.
+- When it finishes, `init` prints the configuration and how to start the server and register it with a client over
+  stdio and over HTTP.
 
 ## Logging
 

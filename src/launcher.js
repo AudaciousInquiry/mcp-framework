@@ -48,6 +48,13 @@ function validateDefinition(def, launcherDir) {
   for (const hook of ['defaultArguments', 'onBridgeStart', 'validate']) {
     if (def[hook] !== undefined && typeof def[hook] !== 'function') throw fieldError(hook, 'must be a function');
   }
+  if (def.promptable !== undefined && (!Array.isArray(def.promptable) || def.promptable.some((p) => typeof p !== 'string'))) {
+    throw fieldError('promptable', 'must be an array of setting names');
+  }
+  if (def.settings !== undefined && !(def.settings && def.settings._zod && def.settings._zod.def && def.settings._zod.def.type === 'object')) {
+    throw fieldError('settings', 'must be a Zod object schema, for example z.object({ feature: z.boolean() })');
+  }
+  if (def.tools !== undefined && !Array.isArray(def.tools)) throw fieldError('tools', 'must come from defineTools');
   const options = def.options === undefined ? [] : def.options;
   if (!Array.isArray(options)) throw fieldError('options', 'must be an array of { name, description, handler }');
   for (const o of options) {
@@ -112,7 +119,8 @@ async function launch(definition, argv, io, launcherDir, script = 'index.js', cw
   const def = validateDefinition(definition, launcherDir);
   try {
     const args = parseLauncherArgs(argv, def);
-    const config = loadConfig({ name: identity.name, defaults: def.defaults, writeDefaults: args.mode !== 'help', validate: def.validate });
+    const isHelp = args.mode === 'help' || args.rest.includes('--help') || args.rest.includes('-h');
+    const config = loadConfig({ name: identity.name, defaults: def.defaults, writeDefaults: !isHelp, validate: def.validate });
     const d = {
       name: identity.name,
       version: identity.version,
