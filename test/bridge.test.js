@@ -75,6 +75,18 @@ function rawBridge(env = {}) {
 
 const INIT = { jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2025-03-26', capabilities: {}, clientInfo: { name: 'raw', version: '1' } } };
 
+/** SIGKILL the server and wait until its port stops answering, so the next call finds it gone. */
+async function killServer(port) {
+  const pid = (await health(port)).pid;
+  process.kill(pid, 'SIGKILL');
+  const end = Date.now() + 5000;
+  for (;;) {
+    try { await request(port, { path: '/health' }); } catch { return pid; }
+    assert.ok(Date.now() < end, `the server (pid ${pid}) still answers 5 s after SIGKILL`);
+    await sleep(50);
+  }
+}
+
 async function callRetrying(client, name, args, tries = 40) {
   let last;
   for (let i = 0; i < tries; i++) {
@@ -186,9 +198,7 @@ test('recovery: the server dies while idle: the first call errors with its id, t
   const hookLog = path.join(h.home, 'hook.log');
   const { client, stderr } = await connectBridge({ EXAMPLE_HOOK_LOG: hookLog });
   t.after(() => client.close());
-  const dead = (await health(port)).pid;
-  process.kill(dead, 'SIGKILL');
-  await sleep(300);
+  const dead = await killServer(port);
   await assert.rejects(client.callTool({ name: 'add', arguments: { a: 1, b: 1 } }), (e) => e.code === -32000);
   const r = await callRetrying(client, 'add', { a: 20, b: 22 });
   assert.strictEqual(r.content[0].text, '42');
@@ -218,8 +228,7 @@ test('a request during the restart gets an immediate error', async (t) => {
   const { port } = await setup(t);
   const { client } = await connectBridge();
   t.after(() => client.close());
-  process.kill((await health(port)).pid, 'SIGKILL');
-  await sleep(200);
+  await killServer(port);
   await assert.rejects(client.callTool({ name: 'add', arguments: { a: 1, b: 1 } }), (e) => e.code === -32000);
   // The restart is under way; this request must be answered at once and not queued.
   const started = Date.now();
@@ -258,9 +267,7 @@ test('several bridges recover together and end with one server', async (t) => {
   t.after(() => a.client.close());
   const b = await connectBridge();
   t.after(() => b.client.close());
-  const dead = (await health(port)).pid;
-  process.kill(dead, 'SIGKILL');
-  await sleep(300);
+  const dead = await killServer(port);
   await Promise.all([
     a.client.callTool({ name: 'add', arguments: { a: 1, b: 1 } }).catch(() => {}),
     b.client.callTool({ name: 'add', arguments: { a: 1, b: 1 } }).catch(() => {}),
