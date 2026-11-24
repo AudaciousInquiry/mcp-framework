@@ -1,7 +1,7 @@
 ---
 schema_version: '1.0'
 updated:
-  - date: '2026-11-24T04:46:43.843Z'
+  - date: '2026-11-24T07:44:09.508Z'
     user: boonek
     agent:
       name: claude-code
@@ -15,7 +15,7 @@ updated:
       README configuration section; README sections: writing tools, the server
       class; README sections: launcher, logging, things worth knowing; README:
       the command line and argument mapping; README: init command, more
-      definition fields
+      definition fields; README: registering with a client and the stdio bridge
 change_request: mcp-framework
 created:
   date: '2026-11-24T04:02:27.000Z'
@@ -51,6 +51,8 @@ runLauncher({ defaultPort: 7561 });
 | `tools` | The tools from your shared tools file (`require('./tools')`). `list` and `call` read their schemas from it, so they need no server. |
 | `settings` | A Zod object schema for your settings. It types the arguments to `init`. |
 | `promptable` | Names of extra settings `init` asks about when run with no arguments. |
+| `onBridgeStart` | `(ctx) => void`: runs when a bridge starts and after each restart of the server (see the stdio bridge). |
+| `bridgeTimeoutMs` | How long the bridge waits for an answer to a forwarded request. Default 600000. |
 | `defaultArguments` | `(toolName, args, ctx) => args`: adjust a `call`'s arguments before it is sent. A value the user typed is never overwritten. |
 
 The MCP's name and version are read from its own `package.json`. The name must be usable as a directory name and
@@ -245,6 +247,49 @@ different quoting, the cmd.exe form is shown; `same` means it is typed the same 
 | `--content "'@alice'"` | same | `{"content":"@alice"}` |
 
 ## Registering with a client
+
+**Over stdio** (clients that launch a command). `init` prints the exact lines for your MCP; they look like this:
+
+```sh
+claude mcp add example-mcp -- node /path/to/index.js --stdio
+```
+
+```json
+{ "mcpServers": { "example-mcp": { "command": "node", "args": ["/path/to/index.js", "--stdio"] } } }
+```
+
+**Over HTTP** (clients that connect to a URL). Start the server first with `node index.js`; it listens on
+`127.0.0.1` only, at the port in your configuration:
+
+```sh
+claude mcp add --transport http example-mcp http://127.0.0.1:7561/
+```
+
+### The stdio bridge
+
+`--stdio` turns the launcher into a bridge between the client's standard input and output and the HTTP server.
+
+- It makes sure a server is running, starting one in the background if needed, and waits until it is healthy
+  before forwarding. If the server cannot be started the reason goes to standard error and the exit status is
+  non-zero; nothing is written to standard output.
+- It forwards every message unchanged, in both directions, including notifications such as progress. Several
+  bridges can share one server.
+- Standard output carries only protocol messages. Notices go to standard error, and `console.log`, `console.info`
+  and `console.debug` are redirected to standard error in bridge mode, so a stray print in your code cannot corrupt
+  the stream.
+- It runs until the client closes standard input, then exits with status zero. It does not stop the server, because
+  other clients may be using it.
+- **Recovery.** If forwarding a message fails because the server cannot be reached, the bridge answers that request
+  at once with an error carrying its id, restarts the server, and keeps the client connected. Requests that arrive
+  during the restart get the same immediate error and are not queued. When the server dies while the client is
+  idle, the first call afterwards gets the error and the next one succeeds. A request that times out because the
+  server is busy, or that gets an HTTP error status, means the server is alive: it gets an error response and the
+  server is not restarted. If the server cannot be restarted the bridge reports it, closes the connection and exits
+  non-zero.
+- **Start-up hook.** `onBridgeStart(ctx)` in the launcher definition runs once the server is healthy and before
+  messages are forwarded, and again after every restart, so state it set up on the server is restored. `ctx.client`
+  calls the server's tools as the command line does. A failure is logged and does not stop the bridge.
+- `bridgeTimeoutMs` in the definition sets how long a forwarded request may wait for an answer (default 10 minutes).
 
 ## Configuration
 

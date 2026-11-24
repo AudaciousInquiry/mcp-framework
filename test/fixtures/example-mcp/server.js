@@ -20,6 +20,16 @@ class ExampleServer extends McpServerBase {
       sleep: async ({ ms }) => { await new Promise((r) => setTimeout(r, ms)); return textResult(`slept ${ms}`); },
       inspect: (args) => jsonResult(args),
       mixed: () => ({ content: [{ type: 'text', text: 'first' }, { type: 'image', data: 'aGk=', mimeType: 'image/png' }, { type: 'text', text: 'second' }] }),
+      progress: async (args, extra) => {
+        const token = extra && extra._meta && extra._meta.progressToken;
+        if (token !== undefined) {
+          await extra.sendNotification({ method: 'notifications/progress', params: { progressToken: token, progress: 1, total: 2 } });
+          await new Promise((r) => setTimeout(r, 100));
+          await extra.sendNotification({ method: 'notifications/progress', params: { progressToken: token, progress: 2, total: 2 } });
+          await new Promise((r) => setTimeout(r, 100));
+        }
+        return textResult('progress done');
+      },
       fail: () => errorResult('this tool always fails'),
       boom: () => { throw new Error('this tool always throws'); },
     });

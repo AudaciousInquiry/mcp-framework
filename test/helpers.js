@@ -25,7 +25,7 @@ function tempHome() {
       for (const [k, v] of Object.entries(saved)) {
         if (v === undefined) delete process.env[k]; else process.env[k] = v;
       }
-      fs.rmSync(home, { recursive: true, force: true });
+      if (!process.env.MCPFW_KEEP_HOME) fs.rmSync(home, { recursive: true, force: true });
     },
   };
 }
@@ -205,4 +205,25 @@ async function startDummy(mode, port, version) {
   return { child, stop: () => { try { child.kill('SIGKILL'); } catch { /* gone */ } } };
 }
 
-module.exports = { writeConfig, fixtureVersion, runLauncher, startDummy, tempHome, freePort, sleep, request, rpc, waitForHealth, startServer, FIXTURE, MCP_HEADERS };
+/**
+ * Stop whatever is serving the port, and keep stopping it until nothing has
+ * answered for a settle period. A server that lost a start race can still be
+ * booting when the winner is stopped, and would take the port afterwards.
+ */
+async function shutdownAll(port, settleMs = 1500) {
+  let quietSince = null;
+  const give = Date.now() + 20000;
+  while (Date.now() < give) {
+    let answered = false;
+    try {
+      const r = await Promise.race([request(port, { method: 'POST', path: '/shutdown' }), sleep(1000).then(() => null)]);
+      answered = r !== null;
+    } catch { /* nothing listening */ }
+    if (answered) quietSince = null;
+    else if (quietSince === null) quietSince = Date.now();
+    else if (Date.now() - quietSince >= settleMs) return;
+    await sleep(150);
+  }
+}
+
+module.exports = { shutdownAll, writeConfig, fixtureVersion, runLauncher, startDummy, tempHome, freePort, sleep, request, rpc, waitForHealth, startServer, FIXTURE, MCP_HEADERS };

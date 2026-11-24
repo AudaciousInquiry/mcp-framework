@@ -45,6 +45,9 @@ function validateDefinition(def, launcherDir) {
   if (!Number.isInteger(startupTimeoutMs) || startupTimeoutMs < 1) {
     throw fieldError('startupTimeoutMs', 'must be a positive whole number of milliseconds');
   }
+  if (def.bridgeTimeoutMs !== undefined && (!Number.isInteger(def.bridgeTimeoutMs) || def.bridgeTimeoutMs < 1)) {
+    throw fieldError('bridgeTimeoutMs', 'must be a positive whole number of milliseconds');
+  }
   for (const hook of ['defaultArguments', 'onBridgeStart', 'validate']) {
     if (def[hook] !== undefined && typeof def[hook] !== 'function') throw fieldError(hook, 'must be a function');
   }

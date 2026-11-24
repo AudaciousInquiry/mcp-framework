@@ -10,7 +10,7 @@ const daemon = require('../src/daemon');
 const { probeHealth } = require('../src/probe');
 const { validateDefinition, parseLauncherArgs } = require('../src/launcher');
 
-const { tempHome, freePort, request, sleep, writeConfig, fixtureVersion, runLauncher, startDummy, FIXTURE } = helpers;
+const { tempHome, freePort, request, sleep, writeConfig, fixtureVersion, runLauncher, startDummy, FIXTURE, shutdownAll } = helpers;
 const NAME = 'example-mcp';
 const INDEX = path.join(FIXTURE, 'index.js');
 
@@ -20,10 +20,7 @@ async function setup(t, settings = {}) {
   writeConfig(NAME, { port, ...settings });
   t.after(async () => {
     // Make sure nothing is left running, then remove the temporary home.
-    try {
-      await Promise.race([request(port, { method: 'POST', path: '/shutdown' }), sleep(1500)]);
-    } catch { /* not running */ }
-    await sleep(300);
+    await shutdownAll(port);
     h.restore();
   });
   return { h, port };

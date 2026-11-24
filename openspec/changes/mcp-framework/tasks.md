@@ -15,7 +15,7 @@ created:
     Implementation tasks for mcp-framework, tests and docs per group, release
     last
 updated:
-  - date: '2026-11-24T04:47:04.192Z'
+  - date: '2026-11-24T07:44:14.879Z'
     user: boonek
     agent:
       name: claude-code
@@ -28,7 +28,7 @@ updated:
     summary: >-
       Groups 1 to 3 complete; Tasks 4.1-4.6 and 5.1-5.3 done; Group 5 and 6
       complete; Group 7 complete, task 4.7 done; Groups 8 and 9 complete; Group
-      10 complete
+      10 complete; Group 11 complete; test script note
   - date: '2026-11-24T00:05:01.422Z'
     user: boonek
     agent:
@@ -51,7 +51,7 @@ README, whose final assembly is group 13. The release tasks are the last group.
 
 - [x] 1.1 Fetch `origin/main`, fast-forward, and create the implementation branch; verify `git status -sb` shows the new branch based on the latest `main`
 - [x] 1.2 Propose the initial version (suggested `0.1.0`) and wait for the user's confirmation before writing it; verify the user confirmed the number
-- [x] 1.3 Create `package.json`: name `@audaciousinquiry/mcp-framework`, CommonJS, `engines.node` `>=22`, `files` `src/`, `README.md`, `LICENSE`, scripts `test` (`node --test`), dependencies SDK `^1.32` and `log4js` `^6.9`, peer dependency `zod` `^4.4` (also a dev dependency); verify `npm install` succeeds
+- [x] 1.3 Create `package.json`: name `@audaciousinquiry/mcp-framework`, CommonJS, `engines.node` `>=22`, `files` `src/`, `README.md`, `LICENSE`, scripts `test` (`node --test "test/*.test.js"`, because a bare `node --test` also runs the files under `test/` that are fixtures), dependencies SDK `^1.32` and `log4js` `^6.9`, peer dependency `zod` `^4.4` (also a dev dependency); verify `npm install` succeeds
 - [x] 1.4 Add `LICENSE` with the Apache License 2.0 text (decided 2026-11-23, consistent with prompt-url and the IZ Gateway Java repos); set `"license": "Apache-2.0"` in `package.json`; verify the file and `package.json` match
 - [x] 1.5 Run `npm audit fix` after the install; verify `npm audit --audit-level=high` reports no high or critical finding
 - [x] 1.6 Add a trivial `test/smoke.test.js` and `.github/workflows/test.yml` (push, pull request and `workflow_call`; `ubuntu-latest`; Node 22 and 24; `npm ci`, `npm audit fix`, `npm audit --audit-level=high`, `npm test`); verify both jobs pass on GitHub
@@ -146,13 +146,13 @@ README, whose final assembly is group 13. The release tasks are the last group.
 
 ## 11. The stdio bridge
 
-- [ ] 11.1 Write bridge mode (`--stdio`): make sure a server runs by the launcher's start path and on failure write the reason to standard error, exit non-zero and write nothing to standard output; verify tests for a start, an already-running server and a failed start
-- [ ] 11.2 Forward every message with the SDK's HTTP client transport and stdio server transport, including server-initiated messages and several clients at once; verify tests with a real SDK client through a spawned bridge
-- [ ] 11.3 Redirect `console.log`, `console.info` and `console.debug` to standard error in bridge mode; verify a test where a start-up hook calls `console.log` and standard output stays clean
-- [ ] 11.4 Exit with status zero when standard input closes, without stopping the server; verify a test that the server is still running afterwards
-- [ ] 11.5 Write the recovery: a failed forward at the connection level gets an error response with the request id and starts one guarded respawn, requests during it get the same immediate error, notifications are only logged, and a timeout or an HTTP error status does not restart the server; verify tests for an idle crash (first call errors, next succeeds), a crash in flight, a busy server, a 500, several bridges recovering together, and a failed recovery closing the bridge non-zero
-- [ ] 11.6 Write the start-up hook with `ctx`, run once the server is healthy before forwarding and again after each respawn, with a failure logged and the bridge still starting; verify tests for each
-- [ ] 11.7 Document the bridge in the README (registering over stdio, the recovery behavior including the error on the first call after an idle crash); verify the registration example works with a real client
+- [x] 11.1 Write bridge mode (`--stdio`): make sure a server runs by the launcher's start path and on failure write the reason to standard error, exit non-zero and write nothing to standard output; verify tests for a start, an already-running server and a failed start
+- [x] 11.2 Forward every message with the SDK's HTTP client transport and stdio server transport, including server-initiated messages and several clients at once; verify tests with a real SDK client through a spawned bridge
+- [x] 11.3 Redirect `console.log`, `console.info` and `console.debug` to standard error in bridge mode; verify a test where a start-up hook calls `console.log` and standard output stays clean
+- [x] 11.4 Exit with status zero when standard input closes, without stopping the server; verify a test that the server is still running afterwards
+- [x] 11.5 Write the recovery: a failed forward at the connection level gets an error response with the request id and starts one guarded respawn, requests during it get the same immediate error, notifications are only logged, and a timeout or an HTTP error status does not restart the server; verify tests for an idle crash (first call errors, next succeeds), a crash in flight, a busy server, a 500, several bridges recovering together, and a failed recovery closing the bridge non-zero
+- [x] 11.6 Write the start-up hook with `ctx`, run once the server is healthy before forwarding and again after each respawn, with a failure logged and the bridge still starting; verify tests for each
+- [x] 11.7 Document the bridge in the README (registering over stdio, the recovery behavior including the error on the first call after an idle crash); verify the registration example works with a real client
 
 ## 12. The plugin contract
 

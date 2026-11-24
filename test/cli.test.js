@@ -8,7 +8,7 @@ const helpers = require('./helpers');
 const config = require('../src/config');
 const { launch } = require('../src/launcher');
 
-const { tempHome, freePort, request, sleep, writeConfig, runLauncher, startServer, FIXTURE } = helpers;
+const { tempHome, freePort, request, sleep, writeConfig, runLauncher, startServer, FIXTURE, shutdownAll } = helpers;
 const NAME = 'example-mcp';
 const INDEX = path.join(FIXTURE, 'index.js');
 
@@ -17,8 +17,7 @@ async function setup(t) {
   const port = await freePort();
   writeConfig(NAME, { port });
   t.after(async () => {
-    try { await Promise.race([request(port, { method: 'POST', path: '/shutdown' }), sleep(1500)]); } catch { /* not running */ }
-    await sleep(300);
+    await shutdownAll(port);
     h.restore();
   });
   return { h, port };

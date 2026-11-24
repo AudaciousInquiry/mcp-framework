@@ -53,6 +53,11 @@ module.exports = defineTools([
     inputSchema: z.object({}),
   },
   {
+    name: 'progress',
+    description: 'Send two progress notifications, then answer.',
+    inputSchema: z.object({}),
+  },
+  {
     name: 'boom',
     description: 'Throw an exception.',
     inputSchema: z.object({}),
