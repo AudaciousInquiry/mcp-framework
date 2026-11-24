@@ -200,3 +200,9 @@ test('a scalar from the JSON is not turned into an object by a dotted argument',
   const shape = { p: z.object({ agent: z.string().optional() }).optional() };
   assert.throws(() => run(shape, ['--p.agent', 'x'], { base: { p: 'a string' } }), /--p.agent: p is not an object/);
 });
+
+test('fractional seconds are truncated to milliseconds, never rolled over', () => {
+  const o = { now: NOW, field: '--d' };
+  assert.strictEqual(convertDate('2026-01-01T10:00:00.9996Z', 'date-time', o), '2026-01-01T10:00:00.999Z');
+  assert.strictEqual(convertDate('2026-01-01T10:00:00.5Z', 'date-time', o), '2026-01-01T10:00:00.500Z');
+});

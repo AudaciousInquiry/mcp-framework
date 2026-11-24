@@ -15,7 +15,7 @@ created:
     Implementation tasks for mcp-framework, tests and docs per group, release
     last
 updated:
-  - date: '2026-11-24T07:49:56.108Z'
+  - date: '2026-11-24T08:23:21.264Z'
     user: boonek
     agent:
       name: claude-code
@@ -29,7 +29,7 @@ updated:
       Groups 1 to 3 complete; Tasks 4.1-4.6 and 5.1-5.3 done; Group 5 and 6
       complete; Group 7 complete, task 4.7 done; Groups 8 and 9 complete; Group
       10 complete; Group 11 complete; test script note; Group 12 complete; Group
-      13 complete
+      13 complete; Tasks 14.1, 14.2, 14.4, 14.5 done
   - date: '2026-11-24T00:05:01.422Z'
     user: boonek
     agent:
@@ -170,11 +170,11 @@ README, whose final assembly is group 13. The release tasks are the last group.
 
 ## 14. Integration checks
 
-- [ ] 14.1 Pack the package with `npm pack`, install the tarball in a temporary empty folder, follow the README's steps to start the example, call a tool over HTTP with a real SDK client and over the stdio bridge, then stop it; verify the whole run passes as a test
-- [ ] 14.2 Run `npm pack --dry-run`; verify the file list is `src/`, `README.md`, `LICENSE` and `package.json` only
+- [x] 14.1 Pack the package with `npm pack`, install the tarball in a temporary empty folder, follow the README's steps to start the example, call a tool over HTTP with a real SDK client and over the stdio bridge, then stop it; verify the whole run passes as a test
+- [x] 14.2 Run `npm pack --dry-run`; verify the file list is `src/`, `README.md`, `LICENSE` and `package.json` only
 - [ ] 14.3 Search the repository for credentials and for names of private projects; verify nothing is found
-- [ ] 14.4 Run `openspec validate mcp-framework` and review that every spec scenario is covered by a test or by the release checklist; verify validation passes and list any uncovered scenario for the user
-- [ ] 14.5 Run `npm audit --audit-level=high`; verify it is clean and CI is green on Node 22 and 24
+- [x] 14.4 Run `openspec validate mcp-framework` and review that every spec scenario is covered by a test or by the release checklist; verify validation passes and list any uncovered scenario for the user
+- [x] 14.5 Run `npm audit --audit-level=high`; verify it is clean and CI is green on Node 22 and 24
 - [ ] 14.6 Open the pull request, tag Copilot for review first, then run `/review` on the diff without reading Copilot's comments, present the findings, and reconcile when Copilot's review lands; verify the findings are addressed and the user has adjudicated any disagreement
 
 ## 15. Release

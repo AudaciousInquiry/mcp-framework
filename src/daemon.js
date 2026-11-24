@@ -114,7 +114,6 @@ function spawnServer(d, { debug = false, logLevel } = {}) {
 async function startAndWait(d, options = {}) {
   fs.mkdirSync(logsDir(d.name), { recursive: true });
   removeStalePidFile(d);
-  const t = timeouts(d);
   const timeoutMs = d.startupTimeoutMs;
   const child = spawnServer(d, options);
 
@@ -149,7 +148,8 @@ async function startAndWait(d, options = {}) {
     });
 
     const onPidFile = async () => {
-      if (settled || !fs.existsSync(pidFile(d.name))) return;
+      // Only a process id file holding the child's own pid counts; a leftover file does not.
+      if (settled || readPid(d) !== child.pid) return;
       if (await healthy('started')) return;
       finish({ ok: false, status: 'unhealthy', message: `the server wrote its process id file but did not answer a health check; see the log ${logFile(d)}` });
     };
@@ -161,14 +161,13 @@ async function startAndWait(d, options = {}) {
 
     timer = setTimeout(async () => {
       if (settled) return;
-      if (fs.existsSync(pidFile(d.name)) && await healthy('started')) return;
+      if (readPid(d) === child.pid && await healthy('started')) return;
       finish({
         ok: false, status: 'timeout', pid: child.pid,
         message: `the server (pid ${child.pid}) was not healthy after ${Math.round(timeoutMs / 1000)} s; it may still be starting. ` +
           `It was left running. Log: ${logFile(d)}`,
       });
     }, timeoutMs);
-    void t;
   });
 }
 

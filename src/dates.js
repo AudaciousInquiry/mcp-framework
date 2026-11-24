@@ -65,7 +65,7 @@ function convertDate(text, kind, { field = 'value', now = new Date() } = {}) {
     const [y, mo, d, h, mi] = [Number(m[1]), Number(m[2]), Number(m[3]), Number(m[4]), Number(m[5])];
     const s = m[6] ? Number(m[6]) : 0;
     if (!validParts(y, mo, d, h, mi, s)) throw bad(field, text);
-    const ms = m[7] ? Math.round(Number(`0.${m[7]}`) * 1000) : 0;
+    const ms = m[7] ? Number(m[7].padEnd(3, '0').slice(0, 3)) : 0;
     let instant;
     if (m[8]) {
       const iso = `${m[1]}-${m[2]}-${m[3]}T${m[4]}:${m[5]}:${pad(s)}.${pad(ms, 3)}${m[8]}`;

@@ -85,16 +85,22 @@ function validateDefinition(def, launcherDir) {
  */
 function parseLauncherArgs(argv, def) {
   const out = { mode: 'start', rest: [], debug: false };
+  let modeFlag = null;
+  const setMode = (mode, flag) => {
+    if (modeFlag) throw new UserError(`${modeFlag} and ${flag} cannot be used together; give one of --stdio, --stop, --restart, --help or an added option`);
+    modeFlag = flag;
+    out.mode = mode;
+  };
   if (argv.length > 0 && COMMANDS.includes(argv[0])) {
     return { ...out, mode: 'command', command: argv[0], rest: argv.slice(1) };
   }
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
-    if (a === '--stdio') out.mode = 'stdio';
-    else if (a === '--stop') out.mode = 'stop';
-    else if (a === '--restart') out.mode = 'restart';
+    if (a === '--stdio') setMode('stdio', a);
+    else if (a === '--stop') setMode('stop', a);
+    else if (a === '--restart') setMode('restart', a);
     else if (a === '--debug') out.debug = true;
-    else if (a === '--help' || a === '-h') out.mode = 'help';
+    else if (a === '--help' || a === '-h') setMode('help', a);
     else if (a === '--log-level' || a.startsWith('--log-level=')) {
       const value = a.includes('=') ? a.slice(a.indexOf('=') + 1) : argv[++i];
       if (value === undefined) throw new UserError('--log-level needs a value: trace, debug, info, warn or error');
@@ -102,7 +108,7 @@ function parseLauncherArgs(argv, def) {
     } else {
       const extra = def.options.find((o) => o.name === a);
       if (!extra) throw new UserError(`unknown option ${a}; run with --help to see the options`);
-      out.mode = 'extra';
+      setMode('extra', a);
       out.extra = extra;
     }
   }

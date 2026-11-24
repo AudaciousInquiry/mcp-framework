@@ -4,6 +4,8 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { deepMerge } = require('./util/merge');
+const { UserError } = require('./errors');
+const { FRAMEWORK_SETTINGS } = require('./settings');
 
 /**
  * The data directory of an MCP: `~/.mcp/<name>`.
@@ -41,7 +43,20 @@ function ensureDataDir(name) {
 
 function checkPort(port, where) {
   if (!Number.isInteger(port) || port < 1 || port > 65535) {
-    throw new Error(`${where}: setting "port" must be a whole number from 1 to 65535, found ${JSON.stringify(port)}`);
+    throw new UserError(`${where}: setting "port" must be a whole number from 1 to 65535, found ${JSON.stringify(port)}`);
+  }
+}
+
+/** Check the framework's own settings: type, minimum and allowed values. */
+function checkFrameworkSettings(candidate, where) {
+  for (const [key, spec] of Object.entries(FRAMEWORK_SETTINGS)) {
+    if (key === 'port' || candidate[key] === undefined) continue;
+    const v = candidate[key];
+    if (spec.enum) {
+      if (!spec.enum.includes(v)) throw new UserError(`${where}: setting "${key}" must be one of ${spec.enum.join(', ')}, found ${JSON.stringify(v)}`);
+    } else if (!Number.isInteger(v) || v < spec.minimum) {
+      throw new UserError(`${where}: setting "${key}" must be a whole number of at least ${spec.minimum}, found ${JSON.stringify(v)}`);
+    }
   }
 }
 
@@ -104,26 +119,29 @@ function loadConfig(options) {
     try {
       stored = JSON.parse(text);
     } catch (err) {
-      throw new Error(`${file} is not valid JSON (${err.message}); correct the file and run the command again`);
+      throw new UserError(`${file} is not valid JSON (${err.message}); correct the file and run the command again`);
     }
     if (stored === null || typeof stored !== 'object' || Array.isArray(stored)) {
-      throw new Error(`${file} must hold a JSON object; correct the file and run the command again`);
+      throw new UserError(`${file} must hold a JSON object; correct the file and run the command again`);
     }
   }
 
   const config = deepMerge(defaults || {}, stored);
   if (config.port === undefined) {
-    throw new Error(`${name}: a default port is required: declare "port" in the defaults`);
+    throw new UserError(`${name}: a default port is required: declare "port" in the defaults`);
   }
   checkPort(config.port, file);
+  checkFrameworkSettings(config, file);
 
   function check(candidate) {
     checkPort(candidate.port, file);
+    checkFrameworkSettings(candidate, file);
     if (validate) {
       const out = validate(snapshot(candidate));
       if (out && typeof out === 'object') candidate = out;
     }
     checkPort(candidate.port, file);
+    checkFrameworkSettings(candidate, file);
     return candidate;
   }
 

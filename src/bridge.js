@@ -88,6 +88,7 @@ async function runBridge(c, createContext) {
   async function recover(reason) {
     if (recovering || finished) return;
     recovering = true;
+    try {
     ctx.log.warn(`server unreachable (${reason}); restarting it`);
     stderr(`${identity.name}: the server is unreachable (${reason}); restarting it`);
     failInflight('The MCP server stopped; it is being restarted. Retry in a moment.');
@@ -102,6 +103,12 @@ async function runBridge(c, createContext) {
     await runHook();
     recovering = false;
     stderr(`${identity.name}: the server was restarted`);
+    } catch (err) {
+      stderr(`${identity.name}: recovery failed: ${err && err.stack ? err.stack : err}`);
+      await http.close().catch(() => {});
+      await stdio.close().catch(() => {});
+      finish(1);
+    }
   }
 
   async function afterFailure(err) {
@@ -120,7 +127,7 @@ async function runBridge(c, createContext) {
     if (finished || recovering) return;
     if (sending > 0 || inflight.size === 0) return;
     failInflight(isTimeout(err) ? 'The MCP server did not answer in time.' : 'The MCP server connection failed. Retry in a moment.');
-    afterFailure(err);
+    afterFailure(err).catch((e) => stderr(`${identity.name}: ${e && e.message ? e.message : e}`));
   };
 
   stdio.onmessage = async (message) => {

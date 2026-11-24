@@ -9,6 +9,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const log4js = require('log4js');
 const { logsDir } = require('./config');
+const { UserError } = require('./errors');
 
 const LEVELS = ['trace', 'debug', 'info', 'warn', 'error'];
 const ENV_KEY = 'MCP_FRAMEWORK_LOGGING';
@@ -47,7 +48,7 @@ function resolveLevel({ option, env, setting, variable = 'the environment variab
     if (value === undefined || value === null || value === '') continue;
     const level = String(value).toLowerCase();
     if (!LEVELS.includes(level)) {
-      throw new Error(`${source} is "${value}"; the allowed values are ${LEVELS.join(', ')}`);
+      throw new UserError(`${source} is "${value}"; the allowed values are ${LEVELS.join(', ')}`);
     }
     return level;
   }

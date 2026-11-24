@@ -272,3 +272,25 @@ test('the process id file does not exist until the port is bound', async (t) => 
   assert.ok(fs.existsSync(config.pidFile(NAME)), 'written once bound');
   assert.strictEqual((await request(port, { path: '/health' })).status, 200);
 });
+
+test('conflicting mode flags are refused, and a bad level is a one-line message', async (t) => {
+  await setup(t);
+  const both = await runLauncher(INDEX, ['--stop', '--stdio']);
+  assert.notStrictEqual(both.code, 0);
+  assert.match(both.stderr, /--stop and --stdio cannot be used together/);
+  const level = await runLauncher(INDEX, ['--log-level', 'loud']);
+  assert.match(level.stderr.trim(), /^example-mcp: --log-level is "loud"/);
+  assert.doesNotMatch(level.stderr, /unexpected failure|\n\s+at /);
+  const broken = await runLauncher(INDEX, [], {});
+  void broken;
+});
+
+test('a leftover process id file naming a live, unrelated process does not fail the start', async (t) => {
+  const { port } = await setup(t);
+  config.ensureDataDir(NAME);
+  fs.writeFileSync(config.pidFile(NAME), String(process.pid)); // alive, but not the server
+  const r = await runLauncher(INDEX);
+  assert.strictEqual(r.code, 0, r.stderr);
+  assert.notStrictEqual(fs.readFileSync(config.pidFile(NAME), 'utf8'), String(process.pid));
+  assert.strictEqual((await request(port, { path: '/health' })).status, 200);
+});

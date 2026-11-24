@@ -135,3 +135,19 @@ test('an unknown key in the file is kept when the configuration is saved', (t) =
   c.save({ port: 6 });
   assert.deepStrictEqual(JSON.parse(fs.readFileSync(config.configFile('a'), 'utf8')), { port: 6, extra: { keep: true } });
 });
+
+test('framework settings are type-checked on load and on save', (t) => {
+  const h = tempHome(); t.after(h.restore);
+  config.ensureDataDir('a');
+  fs.writeFileSync(config.configFile('a'), '{"drainMs": "x"}');
+  assert.throws(() => config.loadConfig({ name: 'a', defaults: { port: 5 } }), /"drainMs" must be a whole number of at least 0/);
+  fs.writeFileSync(config.configFile('a'), '{"log_level": "loud"}');
+  assert.throws(() => config.loadConfig({ name: 'a', defaults: { port: 5 } }), /"log_level" must be one of trace, debug, info, warn, error/);
+  fs.writeFileSync(config.configFile('a'), '{}');
+  const c = config.loadConfig({ name: 'a', defaults: { port: 5 } });
+  const before = fs.readFileSync(config.configFile('a'), 'utf8');
+  for (const bad of [{ startupTimeoutMs: 0 }, { maxBodyBytes: 'x' }, { drainMs: -1 }]) {
+    assert.throws(() => c.save(bad), /must be a whole number/);
+  }
+  assert.strictEqual(fs.readFileSync(config.configFile('a'), 'utf8'), before);
+});

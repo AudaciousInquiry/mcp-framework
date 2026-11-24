@@ -162,3 +162,13 @@ test('definition checks: settings, promptable', async () => {
   assert.throws(() => validateDefinition({ defaultPort: 1, settings: { a: 1 } }, FIXTURE), /"settings".*Zod object/);
   assert.throws(() => validateDefinition({ defaultPort: 1, promptable: 'x' }, FIXTURE), /"promptable"/);
 });
+
+test('JSON settings are checked too: a bad framework setting saves nothing', async (t) => {
+  const h = tempHome(); t.after(h.restore);
+  await init(['--port', '7604']);
+  const before = fs.readFileSync(config.configFile(NAME), 'utf8');
+  const r = await init(['{"startupTimeoutMs":0}']);
+  assert.notStrictEqual(r.code, 0);
+  assert.match(r.err, /^example-mcp: .*"startupTimeoutMs" must be a whole number of at least 1/);
+  assert.strictEqual(fs.readFileSync(config.configFile(NAME), 'utf8'), before);
+});
