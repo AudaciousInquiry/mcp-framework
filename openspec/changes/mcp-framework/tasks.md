@@ -15,6 +15,17 @@ created:
     Implementation tasks for mcp-framework, tests and docs per group, release
     last
 updated:
+  - date: '2026-11-24T04:04:57.871Z'
+    user: boonek
+    agent:
+      name: claude-code
+      version: unknown
+    llm:
+      name: claude-sonnet-5-5
+      version: '5.5'
+    prompt_uri: >-
+      prompt:/claude-code/d670cca5-e0f3-47c9-b239-7d358eabbeb6/~9e7343b6-3205-4e29-8416-e3780929ded3
+    summary: Groups 1 to 3 complete
   - date: '2026-11-24T00:05:01.422Z'
     user: boonek
     agent:
@@ -35,29 +46,29 @@ README, whose final assembly is group 13. The release tasks are the last group.
 
 ## 1. Project setup
 
-- [ ] 1.1 Fetch `origin/main`, fast-forward, and create the implementation branch; verify `git status -sb` shows the new branch based on the latest `main`
-- [ ] 1.2 Propose the initial version (suggested `0.1.0`) and wait for the user's confirmation before writing it; verify the user confirmed the number
-- [ ] 1.3 Create `package.json`: name `@audaciousinquiry/mcp-framework`, CommonJS, `engines.node` `>=22`, `files` `src/`, `README.md`, `LICENSE`, scripts `test` (`node --test`), dependencies SDK `^1.32` and `log4js` `^6.9`, peer dependency `zod` `^4.4` (also a dev dependency); verify `npm install` succeeds
-- [ ] 1.4 Add `LICENSE` with the Apache License 2.0 text (decided 2026-11-23, consistent with prompt-url and the IZ Gateway Java repos); set `"license": "Apache-2.0"` in `package.json`; verify the file and `package.json` match
-- [ ] 1.5 Run `npm audit fix` after the install; verify `npm audit --audit-level=high` reports no high or critical finding
-- [ ] 1.6 Add a trivial `test/smoke.test.js` and `.github/workflows/test.yml` (push, pull request and `workflow_call`; `ubuntu-latest`; Node 22 and 24; `npm ci`, `npm audit fix`, `npm audit --audit-level=high`, `npm test`); verify both jobs pass on GitHub
-- [ ] 1.7 Create a `README.md` skeleton with the section headings from design 11.4; verify the headings are present in that order
+- [x] 1.1 Fetch `origin/main`, fast-forward, and create the implementation branch; verify `git status -sb` shows the new branch based on the latest `main`
+- [x] 1.2 Propose the initial version (suggested `0.1.0`) and wait for the user's confirmation before writing it; verify the user confirmed the number
+- [x] 1.3 Create `package.json`: name `@audaciousinquiry/mcp-framework`, CommonJS, `engines.node` `>=22`, `files` `src/`, `README.md`, `LICENSE`, scripts `test` (`node --test`), dependencies SDK `^1.32` and `log4js` `^6.9`, peer dependency `zod` `^4.4` (also a dev dependency); verify `npm install` succeeds
+- [x] 1.4 Add `LICENSE` with the Apache License 2.0 text (decided 2026-11-23, consistent with prompt-url and the IZ Gateway Java repos); set `"license": "Apache-2.0"` in `package.json`; verify the file and `package.json` match
+- [x] 1.5 Run `npm audit fix` after the install; verify `npm audit --audit-level=high` reports no high or critical finding
+- [x] 1.6 Add a trivial `test/smoke.test.js` and `.github/workflows/test.yml` (push, pull request and `workflow_call`; `ubuntu-latest`; Node 22 and 24; `npm ci`, `npm audit fix`, `npm audit --audit-level=high`, `npm test`); verify both jobs pass on GitHub
+- [x] 1.7 Create a `README.md` skeleton with the section headings from design 11.4; verify the headings are present in that order
 
 ## 2. Small utilities
 
-- [ ] 2.1 Write the version compare (major, minor, patch; suffixes ignored); verify unit tests for equal, older, newer and `1.2.3-beta.1+build5` pass
-- [ ] 2.2 Write the configuration merge (nested objects key by key, arrays replaced, `0`, `false` and `null` kept, unknown keys kept); verify unit tests for each rule pass
-- [ ] 2.3 Write name and version validation from `package.json` (usable as a directory name, derives the `<NAME>_LOG_LEVEL` variable name, version is semver); verify unit tests for the valid and each invalid case pass, with messages naming the field
-- [ ] 2.4 Write the Node version check (below 22 prints one line with the needed and found versions and exits non-zero); verify unit tests with injected versions 20 and 22 pass
+- [x] 2.1 Write the version compare (major, minor, patch; suffixes ignored); verify unit tests for equal, older, newer and `1.2.3-beta.1+build5` pass
+- [x] 2.2 Write the configuration merge (nested objects key by key, arrays replaced, `0`, `false` and `null` kept, unknown keys kept); verify unit tests for each rule pass
+- [x] 2.3 Write name and version validation from `package.json` (usable as a directory name, derives the `<NAME>_LOG_LEVEL` variable name, version is semver); verify unit tests for the valid and each invalid case pass, with messages naming the field
+- [x] 2.4 Write the Node version check (below 22 prints one line with the needed and found versions and exits non-zero); verify unit tests with injected versions 20 and 22 pass
 
 ## 3. Configuration
 
-- [ ] 3.1 Create the data directory `~/.mcp/<name>/` with its `logs` folder on demand; verify a test with `HOME` and `USERPROFILE` pointed at a temporary folder creates it and two MCP names never share one
-- [ ] 3.2 Require the declared default port and use it unless the file sets another; verify tests for the declared default, the user override and the refusal to start without a port
-- [ ] 3.3 Load the configuration: merge over defaults, keep unknown keys, reject invalid JSON or a port outside 1 to 65535 with a message naming the file and the problem, and never overwrite a corrupt file; verify tests for each case, including that the corrupt file's bytes are unchanged
-- [ ] 3.4 Write the defaults on first run from the launcher side only, with the exclusive-create flag and `EEXIST` read as success; the server uses the defaults in memory and writes nothing; verify tests for two simultaneous creators and for a server that finds no file
-- [ ] 3.5 Write the save function: no argument stores the current configuration; an update is merged into a copy, validated, written and only then applied in memory; replace the file by temporary file and rename; support the MCP's validate and normalize function; verify tests for partial update, zero as a value, normalization, rejection changing nothing in memory or on disk, and a failed write leaving the old file complete
-- [ ] 3.6 Document the configuration file in the README (location, settings, first run, the changed-default caveat, the save function); verify every setting and path named in the section exists in the code
+- [x] 3.1 Create the data directory `~/.mcp/<name>/` with its `logs` folder on demand; verify a test with `HOME` and `USERPROFILE` pointed at a temporary folder creates it and two MCP names never share one
+- [x] 3.2 Require the declared default port and use it unless the file sets another; verify tests for the declared default, the user override and the refusal to start without a port
+- [x] 3.3 Load the configuration: merge over defaults, keep unknown keys, reject invalid JSON or a port outside 1 to 65535 with a message naming the file and the problem, and never overwrite a corrupt file; verify tests for each case, including that the corrupt file's bytes are unchanged
+- [x] 3.4 Write the defaults on first run from the launcher side only, with the exclusive-create flag and `EEXIST` read as success; the server uses the defaults in memory and writes nothing; verify tests for two simultaneous creators and for a server that finds no file
+- [x] 3.5 Write the save function: no argument stores the current configuration; an update is merged into a copy, validated, written and only then applied in memory; replace the file by temporary file and rename; support the MCP's validate and normalize function; verify tests for partial update, zero as a value, normalization, rejection changing nothing in memory or on disk, and a failed write leaving the old file complete
+- [x] 3.6 Document the configuration file in the README (location, settings, first run, the changed-default caveat, the save function); verify every setting and path named in the section exists in the code
 
 ## 4. Logging
 
