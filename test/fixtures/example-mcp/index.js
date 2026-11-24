@@ -3,4 +3,4 @@
 
 const { runLauncher } = require('../../../src/launcher');
 
-runLauncher({ defaultPort: 7561 });
+runLauncher({ defaultPort: 7561, tools: require('./tools') });

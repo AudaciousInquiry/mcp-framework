@@ -1,7 +1,7 @@
 ---
 schema_version: '1.0'
 updated:
-  - date: '2026-11-24T04:28:29.964Z'
+  - date: '2026-11-24T04:35:04.068Z'
     user: boonek
     agent:
       name: claude-code
@@ -13,7 +13,8 @@ updated:
       prompt:/claude-code/d670cca5-e0f3-47c9-b239-7d358eabbeb6/~9e7343b6-3205-4e29-8416-e3780929ded3
     summary: >-
       README configuration section; README sections: writing tools, the server
-      class; README sections: launcher, logging, things worth knowing
+      class; README sections: launcher, logging, things worth knowing; README:
+      the command line and argument mapping
 change_request: mcp-framework
 created:
   date: '2026-11-24T04:02:27.000Z'
@@ -145,6 +146,98 @@ means this MCP is already running, and the new process exits 0. Anything else is
 non-zero.
 
 ## The command line
+
+The launcher doubles as a command-line client. Pass your tools file to the launcher so the commands can type
+arguments without a running server: `runLauncher({ defaultPort: 7561, tools: require('./tools') })`.
+
+| Command | What it does |
+|---|---|
+| `health` | Print the running server's `/health` body as indented JSON. A status other than 200, or a body that is not JSON, is reported and the exit status is non-zero. |
+| `list` | Print every tool in the tools file with its description, and under it each parameter's name, type, required or optional, and description. Needs no server. A tool registered at run time does not appear. |
+| `call <tool> [json\|@file] [--argument value ...]` | Call a tool on the running server. The tool's text result goes to standard output. An error result goes to standard error and the exit status is non-zero. Only text content is printed, joined by newlines. |
+| `call <tool> --help` | Print the tool's arguments as they are written on the command line. Needs no server. |
+| `init ...` | Show or change the settings in the configuration file (see Configuration). |
+| `--help`, `-h` | Print usage: every option and command, the configuration file location, the default port, and the help text of any options your MCP added. |
+
+`health` and `call` act on a server that is already running and never start one. If nothing is listening they
+say so within a few seconds, tell you to start the MCP with the launcher, and exit non-zero.
+
+**Errors.** A problem with what you typed is one line prefixed with the MCP's name, for example
+`example-mcp: --count: "abc" is not a whole number`. An unexpected failure includes its stack trace.
+
+**Default arguments.** Add `defaultArguments(toolName, args, ctx)` to the launcher definition to fill in arguments
+a person at a terminal cannot reasonably supply, such as an identity. Return the adjusted arguments. A value the
+user typed is never overwritten.
+
+### Giving arguments to `call`
+
+Give the arguments as a JSON object (inline, or `@file` to read it from a file, which avoids shell quoting problems on
+Windows), as `--name value` or `--name=value` flags, or both. The JSON is applied first and the flags are set on
+top, so a flag overrides the same field in the JSON. The tool's own Zod schema decides each value's type; the
+look of the value never does, so `--code 007` stays the string `007` when `code` is a string.
+
+- **Numbers** are plain decimal numbers (`0.25`, `-5`, `1e3`); integers have no fraction. A negative value after a
+  flag is that flag's value, not another option. `abc`, `1,000` and `0x10` are errors.
+- **Booleans** are `--flag`, `--no-flag`, `--flag=true` or `--flag=false`.
+- **Enumerations** must be one of the allowed values; the error lists them.
+- **Strings** may be wrapped in single or double quotes, which are removed. Write a quote inside a quoted string as
+  `\"` or `\'`. A quote opens a string only at the start of a value or list element, so `don't stop` is unchanged,
+  and a backslash not followed by a quote is literal, so `C:\Users\me` passes through. An unclosed quote is an error.
+- **Lists** are comma-separated: `--tags a,b,c`. A comma inside a quoted element does not separate. A field declared
+  as a string or a list is a list when the value has an unquoted comma and a string otherwise.
+- **Nested fields** use dotted names: `--provenance.agent.name claude` sets only that field and keeps the rest of
+  the object. A number addresses a list element: `--items.1.name second`. A whole object can be given as JSON.
+- **Dates.** A date field is sent as `YYYY-MM-DD` and a date-time field as UTC ending in `Z`. A date-time without a
+  zone, and a date given for a date-time field, is read in your local time zone. The relative forms are `now`,
+  `today`, `yesterday`, `tomorrow` and a signed offset: `-7d`, `+2w`, `-3h`, `+30m`. Other natural language is refused.
+- **File paths.** Mark a field with `.meta({ 'x-cli': 'file' })` and a relative value is sent as an absolute path,
+  resolved against the directory you ran the command from. The file need not exist.
+- **File contents.** A value starting with `@` is read from that file: the text for a string field, parsed JSON for an
+  object or list. Quote the `@` (`"'@alice'"`) for a literal at sign.
+- **Mistakes fail before anything is sent.** An unknown name (with a suggestion for a near miss), a repeated name,
+  a wrong type and a scalar used as an object all stop the command. A schema that allows extra properties accepts
+  unknown names, as strings.
+
+#### Argument examples
+
+Each row is a call of the fixture's `inspect` tool, which returns the arguments it received. Where a shell needs
+different quoting, the cmd.exe form is shown; `same` means it is typed the same way.
+
+| POSIX shell | cmd.exe | Tool receives |
+|---|---|---|
+| `--title Hello` | same | `{"title":"Hello"}` |
+| `--title=Hello` | same | `{"title":"Hello"}` |
+| `--code 007` | same | `{"code":"007"}` |
+| `--count 7` | same | `{"count":7}` |
+| `--ratio 0.25` | same | `{"ratio":0.25}` |
+| `--ratio -5` | same | `{"ratio":-5}` |
+| `--verbose` | same | `{"verbose":true}` |
+| `--no-verbose` | same | `{"verbose":false}` |
+| `--verbose=false` | same | `{"verbose":false}` |
+| `--level high` | same | `{"level":"high"}` |
+| `--tags a,b,c` | same | `{"tags":["a","b","c"]}` |
+| `--ids 1,2,3` | same | `{"ids":[1,2,3]}` |
+| `--tags ''` | `--tags ""` | `{"tags":[]}` |
+| `--names solo` | same | `{"names":"solo"}` |
+| `--names a,b` | same | `{"names":["a","b"]}` |
+| `--since 2026-11-18` | same | `{"since":"2026-11-18"}` |
+| `--since -7d` | same | `{"since":"<date>"}` |
+| `--since yesterday` | same | `{"since":"<date>"}` |
+| `--at 2026-11-18T09:30:00-05:00` | same | `{"at":"2026-11-18T14:30:00.000Z"}` |
+| `--at -3h` | same | `{"at":"<date-time>"}` |
+| `--path notes/a.md` | `--path notes\a.md` | `{"path":"<cwd>/notes/a.md"}` |
+| `--content @notes.md` | same | `{"content":"hello from notes"}` |
+| `--provenance @prov.json` | same | `{"provenance":{"session_id":"s1"}}` |
+| `--provenance.agent.name claude` | same | `{"provenance":{"agent":{"name":"claude"}}}` |
+| `--provenance.session_id s1 --provenance.agent.name claude` | same | `{"provenance":{"session_id":"s1","agent":{"name":"claude"}}}` |
+| `--provenance '{"session_id":"s1"}'` | `--provenance "{\"session_id\":\"s1\"}"` | `{"provenance":{"session_id":"s1"}}` |
+| `'{"title":"A","count":1}' --title B` | `"{\"title\":\"A\",\"count\":1}" --title B` | `{"title":"B","count":1}` |
+| `@base.json --count 5` | same | `{"title":"from file","count":5}` |
+| `--tags '"a,b",c'` | `--tags "\"a,b\",c"` | `{"tags":["a,b","c"]}` |
+| `--title '"say \"hi\""'` | `--title "\"say \\\"hi\\\"\""` | `{"title":"say \"hi\""}` |
+| `--title "it's fine"` | same | `{"title":"it's fine"}` |
+| `--title 'C:\Users\me\notes.md'` | `--title C:\Users\me\notes.md` | `{"title":"C:\\Users\\me\\notes.md"}` |
+| `--content "'@alice'"` | same | `{"content":"@alice"}` |
 
 ## Registering with a client
 

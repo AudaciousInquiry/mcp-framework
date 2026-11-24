@@ -15,7 +15,7 @@ created:
     Implementation tasks for mcp-framework, tests and docs per group, release
     last
 updated:
-  - date: '2026-11-24T04:28:35.844Z'
+  - date: '2026-11-24T04:35:48.323Z'
     user: boonek
     agent:
       name: claude-code
@@ -27,7 +27,7 @@ updated:
       prompt:/claude-code/d670cca5-e0f3-47c9-b239-7d358eabbeb6/~9e7343b6-3205-4e29-8416-e3780929ded3
     summary: >-
       Groups 1 to 3 complete; Tasks 4.1-4.6 and 5.1-5.3 done; Group 5 and 6
-      complete; Group 7 complete, task 4.7 done
+      complete; Group 7 complete, task 4.7 done; Groups 8 and 9 complete
   - date: '2026-11-24T00:05:01.422Z'
     user: boonek
     agent:
@@ -115,26 +115,26 @@ README, whose final assembly is group 13. The release tasks are the last group.
 
 ## 8. Argument mapping
 
-- [ ] 8.1 Write the argument parser (`--name value`, `--name=value`, `--no-name`, negative values such as `--since -7d`, repeated flags); verify unit tests including the cases `util.parseArgs` rejects
-- [ ] 8.2 Convert by the schema's types, never by guessing, with untyped properties as strings; verify unit tests for `007` staying a string and `7` becoming a number
-- [ ] 8.3 Convert integers, numbers, booleans and enums with errors naming the setting and the value; verify unit tests for each type and each error
-- [ ] 8.4 Handle quoting and escaping in strings, comma-separated arrays and fields that may be a string or a list; verify unit tests for quotes, escaped commas and both field forms
-- [ ] 8.5 Handle dotted names for nested fields and the merge order (JSON first, flags on top); verify unit tests for nested typing and the order
-- [ ] 8.6 Convert absolute and relative dates and date-times; verify unit tests with a fixed clock for each form and each failure
-- [ ] 8.7 Handle file path arguments (`x-cli: file`, resolved against the current directory) and the `@` prefix; verify unit tests including a missing file
-- [ ] 8.8 Fail fast on unknown, repeated or conflicting arguments with a suggestion for a near miss, honoring a schema that allows additional properties; verify unit tests and that nothing is sent to a server
-- [ ] 8.9 Print argument help for a tool (`call <tool> --help`) from the shared file, with no server; verify a test with nothing listening
-- [ ] 8.10 Document argument mapping in the README with an example for every type, dotted names, the `@` prefix, file paths and quoting in both cmd.exe and a POSIX shell; verify a test runs each documented example against the fixture
+- [x] 8.1 Write the argument parser (`--name value`, `--name=value`, `--no-name`, negative values such as `--since -7d`, repeated flags); verify unit tests including the cases `util.parseArgs` rejects
+- [x] 8.2 Convert by the schema's types, never by guessing, with untyped properties as strings; verify unit tests for `007` staying a string and `7` becoming a number
+- [x] 8.3 Convert integers, numbers, booleans and enums with errors naming the setting and the value; verify unit tests for each type and each error
+- [x] 8.4 Handle quoting and escaping in strings, comma-separated arrays and fields that may be a string or a list; verify unit tests for quotes, escaped commas and both field forms
+- [x] 8.5 Handle dotted names for nested fields and the merge order (JSON first, flags on top); verify unit tests for nested typing and the order
+- [x] 8.6 Convert absolute and relative dates and date-times; verify unit tests with a fixed clock for each form and each failure
+- [x] 8.7 Handle file path arguments (`x-cli: file`, resolved against the current directory) and the `@` prefix; verify unit tests including a missing file
+- [x] 8.8 Fail fast on unknown, repeated or conflicting arguments with a suggestion for a near miss, honoring a schema that allows additional properties; verify unit tests and that nothing is sent to a server
+- [x] 8.9 Print argument help for a tool (`call <tool> --help`) from the shared file, with no server; verify a test with nothing listening
+- [x] 8.10 Document argument mapping in the README with an example for every type, dotted names, the `@` prefix, file paths and quoting in both cmd.exe and a POSIX shell; verify a test runs each documented example against the fixture
 
 ## 9. Command-line client
 
-- [ ] 9.1 Write `health` (indented JSON, an unhealthy answer reported with a non-zero exit, a short wait when unreachable, no server started); verify tests for each
-- [ ] 9.2 Write `list` from the shared tools file (name, description, parameters with type display for enums, arrays and objects, required marks), working with no server and not showing run-time tools; verify tests for each
-- [ ] 9.3 Write `call` (inline JSON, `@file`, flags, text to standard output, an error result to standard error with a non-zero exit, non-text content, missing or unknown tool, JSON-only for a run-time tool); verify tests against the fixture server
-- [ ] 9.4 Report user errors as one line prefixed with the MCP's name and unexpected failures with the stack; verify a test for each
-- [ ] 9.5 Support the plugin's default-arguments function with the user's value winning; verify tests for filling, not overwriting and absence
-- [ ] 9.6 Write `--help` and `-h` (framework options and commands including `init`, the configuration location, the default port and the plugin's option help); verify tests that each item appears
-- [ ] 9.7 Document the command line in the README; verify each command shown runs against the fixture
+- [x] 9.1 Write `health` (indented JSON, an unhealthy answer reported with a non-zero exit, a short wait when unreachable, no server started); verify tests for each
+- [x] 9.2 Write `list` from the shared tools file (name, description, parameters with type display for enums, arrays and objects, required marks), working with no server and not showing run-time tools; verify tests for each
+- [x] 9.3 Write `call` (inline JSON, `@file`, flags, text to standard output, an error result to standard error with a non-zero exit, non-text content, missing or unknown tool, JSON-only for a run-time tool); verify tests against the fixture server
+- [x] 9.4 Report user errors as one line prefixed with the MCP's name and unexpected failures with the stack; verify a test for each
+- [x] 9.5 Support the plugin's default-arguments function with the user's value winning; verify tests for filling, not overwriting and absence
+- [x] 9.6 Write `--help` and `-h` (framework options and commands including `init`, the configuration location, the default port and the plugin's option help); verify tests that each item appears
+- [x] 9.7 Document the command line in the README; verify each command shown runs against the fixture
 
 ## 10. The init command
 

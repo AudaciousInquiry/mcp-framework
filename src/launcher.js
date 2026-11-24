@@ -107,7 +107,7 @@ function parseLauncherArgs(argv, def) {
  * @param {string} launcherDir
  * @returns {Promise<number>}
  */
-async function launch(definition, argv, io, launcherDir) {
+async function launch(definition, argv, io, launcherDir, script = 'index.js', cwd = process.cwd()) {
   const identity = readIdentity(launcherDir);
   const def = validateDefinition(definition, launcherDir);
   try {
@@ -131,7 +131,7 @@ async function launch(definition, argv, io, launcherDir) {
     else if (args.mode === 'stop') result = await daemon.stop(d);
     else {
       const modes = require('./modes');
-      return await modes.run({ args, def, identity, config, d, io, launcherDir });
+      return await modes.run({ args, def, identity, config, d, io, launcherDir, script, cwd });
     }
     (result.ok ? io.out : io.err)(result.ok ? result.message : `${identity.name}: ${result.message}`);
     return result.ok ? 0 : 1;
@@ -140,7 +140,8 @@ async function launch(definition, argv, io, launcherDir) {
       io.err(`${identity.name}: ${err.message}`);
       return err.exitCode;
     }
-    throw err;
+    io.err(`${identity.name}: unexpected failure: ${err && err.stack ? err.stack : err}`);
+    return 1;
   }
 }
 
@@ -162,7 +163,7 @@ function runLauncher(definition) {
     out: (m) => process.stdout.write(`${m}\n`),
     err: (m) => process.stderr.write(`${m}\n`),
   };
-  return launch(definition, process.argv.slice(2), io, launcherDir).then(
+  return launch(definition, process.argv.slice(2), io, launcherDir, path.basename(script)).then(
     (code) => process.exit(code),
     (err) => {
       if (err instanceof UserError) {

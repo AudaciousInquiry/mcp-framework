@@ -72,10 +72,11 @@ function canWrite(file) {
  * @param {string} options.level resolved level
  * @param {boolean} [options.debug] mirror the log to standard error
  * @param {number} [options.maxLogSize] roll-over size in bytes (default 10 MB)
+ * @param {string} [options.file] log file name in the logs folder (default `server.log`)
  */
-function configureLogging({ name, level, debug = false, maxLogSize = 10 * 1024 * 1024 }) {
-  process.env[ENV_KEY] = JSON.stringify({ name, level, debug, maxLogSize });
-  const file = path.join(logsDir(name), 'server.log');
+function configureLogging({ name, level, debug = false, maxLogSize = 10 * 1024 * 1024, file: fileName = 'server.log' }) {
+  process.env[ENV_KEY] = JSON.stringify({ name, level, debug, maxLogSize, file: fileName });
+  const file = path.join(logsDir(name), fileName);
   const appenders = {};
   const names = [];
   if (canWrite(file)) {

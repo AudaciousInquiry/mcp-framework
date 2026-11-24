@@ -108,7 +108,7 @@ test('tool list shows every registered tool', async (t) => {
   const s = await startServer(); t.after(() => s.stop());
   const r = await rpc(s.port, { jsonrpc: '2.0', id: 1, method: 'tools/list', params: {} });
   const names = r.reply.result.tools.map((x) => x.name).sort();
-  assert.deepStrictEqual(names, ['add', 'boom', 'echo', 'fail', 'sleep']);
+  assert.deepStrictEqual(names, ['add', 'boom', 'echo', 'fail', 'inspect', 'mixed', 'sleep']);
   assert.strictEqual(r.reply.result.tools.find((x) => x.name === 'add').inputSchema.properties.a.type, 'integer');
 });
 

@@ -1,7 +1,7 @@
 'use strict';
 
 const fs = require('node:fs');
-const { McpServerBase, textResult, errorResult } = require('../../../src');
+const { McpServerBase, textResult, jsonResult, errorResult } = require('../../../src');
 const tools = require('./tools');
 
 class ExampleServer extends McpServerBase {
@@ -18,6 +18,8 @@ class ExampleServer extends McpServerBase {
       echo: ({ text }) => { context.calls++; return textResult(text); },
       add: ({ a, b }) => textResult(String(a + b)),
       sleep: async ({ ms }) => { await new Promise((r) => setTimeout(r, ms)); return textResult(`slept ${ms}`); },
+      inspect: (args) => jsonResult(args),
+      mixed: () => ({ content: [{ type: 'text', text: 'first' }, { type: 'image', data: 'aGk=', mimeType: 'image/png' }, { type: 'text', text: 'second' }] }),
       fail: () => errorResult('this tool always fails'),
       boom: () => { throw new Error('this tool always throws'); },
     });
