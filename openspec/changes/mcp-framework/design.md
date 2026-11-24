@@ -15,6 +15,28 @@ created:
     Design draft with approved Decisions 1 and 2 (launcher entry point; two
     files with a server base class and detached spawn)
 updated:
+  - date: '2026-11-24T15:00:16.850Z'
+    user: boonek
+    agent:
+      name: claude-code
+      version: unknown
+    llm:
+      name: claude-sonnet-5-5
+      version: '5.5'
+    prompt_uri: >-
+      prompt:/claude-code/d670cca5-e0f3-47c9-b239-7d358eabbeb6/~3d33f0d5-21dc-4cb4-a45b-87cd381b62aa
+    summary: 'Design 6.10: bearer token for /shutdown'
+  - date: '2026-11-24T14:29:30.841Z'
+    user: boonek
+    agent:
+      name: claude-code
+      version: unknown
+    llm:
+      name: claude-sonnet-5-5
+      version: '5.5'
+    prompt_uri: >-
+      prompt:/claude-code/d670cca5-e0f3-47c9-b239-7d358eabbeb6/~96807055-c79b-4c7e-985c-4481dd31a909
+    summary: Remove md-csv-mcp details from design.md; names only (user decision 14.3)
   - date: '2026-11-23T22:19:14.550Z'
     user: boonek
     agent:
@@ -488,6 +510,16 @@ stops, because the server holds that pipe open. At a console there is nothing to
 Tests claim only what they check: log lines are mirrored to a connected standard error; a closed standard error
 is ignored; and lines appearing in a real terminal window is a manual step in the Windows release checklist.
 
+**6.10 A bearer token for `/shutdown`.** Proposed by the user after the pull request review. At start the server
+makes 32 random bytes (hex), keeps them in memory, and writes `{"pid": n, "token": "..."}` to the process id file
+(mode 600 where the system honors it). `POST /shutdown` is refused with 401 unless `Authorization: Bearer <token>`
+matches, compared in constant time; a new token is made at every start. Any local client that can read the file
+can stop the server, which is the same audience as before but no longer includes a process that merely reaches the
+port. The launcher reads the token from the file and sends it only when the file's pid equals the pid the `/health`
+answer reported, so the token is never given to an unrelated listener, and it kills a process only when the file
+names it (a review finding: `/health` alone could name any pid). A file holding a plain number from an older
+version is read as a pid with no token. `/health` keeps its shape check, now requiring a whole-number pid above 1.
+
 **Alternatives considered:** polling `/health` every 200 ms (replaced by waiting for the process id file); a
 lock file for single instance; looking up the port's owner with `netstat` or `lsof`; `taskkill` or a tree-kill
 library (not needed for one process with worker threads; a plugin that spawns its own children cleans them up in
@@ -532,7 +564,7 @@ reason to standard error and exits non-zero without writing to standard output; 
 once the server is healthy and again after each respawn.
 
 **State a plugin needs per agent session.** The framework has no session concept. A plugin that must know who
-is calling, as md-csv-mcp does by registering the agent session through a tool call at start-up, does that in
+is calling does that in
 the start-up hook and keeps what it registers in its own storage. That is part of the migration, not of the
 framework.
 
@@ -563,7 +595,7 @@ the old value, because stored values win; the README says so.
 stores the current configuration, including changes made in place. With a partial set of settings it merges
 them into a copy, validates the copy, writes it, and only then updates the in-memory configuration, so a
 rejected update changes nothing. The MCP may supply a function that validates or normalizes the configuration.
-The framework promises no further plugin-facing save API: a command such as md-csv-mcp's `--enable-bi` is
+The framework promises no further plugin-facing save API: a launcher option that changes a setting is
 written in that MCP's migration and calls this function.
 
 **8.4 Merging.** Stored values are merged over the defaults with a small function of our own (about fifteen

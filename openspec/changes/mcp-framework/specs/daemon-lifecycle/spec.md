@@ -13,6 +13,19 @@ created:
     prompt:/claude-code/d670cca5-e0f3-47c9-b239-7d358eabbeb6/~80990185-d187-4a21-8126-b18a46afb811
   summary: daemon-lifecycle spec for mcp-framework
 updated:
+  - date: '2026-11-24T15:00:12.220Z'
+    user: boonek
+    agent:
+      name: claude-code
+      version: unknown
+    llm:
+      name: claude-sonnet-5-5
+      version: '5.5'
+    prompt_uri: >-
+      prompt:/claude-code/d670cca5-e0f3-47c9-b239-7d358eabbeb6/~3d33f0d5-21dc-4cb4-a45b-87cd381b62aa
+    summary: >-
+      Process id file holds the shutdown token; kill only a process the file
+      names
   - date: '2026-11-23T14:13:29.028Z'
     user: boonek
     agent:
@@ -221,8 +234,10 @@ an explicit stop or restart ever ends a running server.
 
 ### Requirement: Process id file
 
-The server SHALL write its process id to a file in the MCP's data directory only after it has bound its
-port, and SHALL remove the file when it shuts down.
+The server SHALL write its process id, and the bearer token its shutdown route requires, to a file in the MCP's
+data directory only after it has bound its port, readable by the owner only where the system allows, and SHALL
+remove the file when it shuts down. A stop SHALL send the token only to a server whose reported process id is the
+one in the file, and SHALL NOT kill a process the file does not name.
 
 #### Scenario: Written after binding
 - **WHEN** the server starts

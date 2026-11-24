@@ -1,0 +1,32 @@
+{
+  "name": "@audaciousinquiry/mcp-framework",
+  "version": "0.1.0",
+  "description": "Framework for local MCP servers: a detached HTTP daemon, a stdio bridge, a CLI, configuration and logging.",
+  "license": "Apache-2.0",
+  "main": "src/index.js",
+  "engines": {
+    "node": ">=22"
+  },
+  "files": [
+    "src/",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "test": "node --test --test-timeout=240000 \"test/*.test.js\""
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/AudaciousInquiry/mcp-framework.git"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.0",
+    "log4js": "^6.9.1"
+  },
+  "peerDependencies": {
+    "zod": "^4.4.0"
+  },
+  "devDependencies": {
+    "zod": "^4.4.0"
+  }
+}

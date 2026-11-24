@@ -1,0 +1,6 @@
+{
+  "name": "example-mcp",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Stand-in MCP used by the framework's tests and the README example."
+}
