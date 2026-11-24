@@ -6,6 +6,7 @@ const net = require('node:net');
 const os = require('node:os');
 const path = require('node:path');
 const { spawn } = require('node:child_process');
+const crypto = require('node:crypto');
 
 const FIXTURE = path.join(__dirname, 'fixtures', 'example-mcp');
 
@@ -147,4 +148,61 @@ async function startServer({ env = {}, args = [], defaults = {}, port, waitHealt
   return server;
 }
 
-module.exports = { tempHome, freePort, sleep, request, rpc, waitForHealth, startServer, FIXTURE, MCP_HEADERS };
+/** Write the user's config.json for the fixture MCP. */
+function writeConfig(name, settings) {
+  const dir = path.join(os.homedir(), '.mcp', name);
+  fs.mkdirSync(path.join(dir, 'logs'), { recursive: true });
+  fs.writeFileSync(path.join(dir, 'config.json'), JSON.stringify(settings));
+}
+
+/**
+ * Copy the fixture to a sibling folder with another version (same depth, so its
+ * relative requires still work). Returns the folder; remove it when done.
+ */
+function fixtureVersion(version) {
+  const dir = path.join(path.dirname(FIXTURE), `example-mcp-v${version}-${crypto.randomBytes(3).toString('hex')}`);
+  fs.cpSync(FIXTURE, dir, { recursive: true });
+  const pkg = JSON.parse(fs.readFileSync(path.join(dir, 'package.json'), 'utf8'));
+  pkg.version = version;
+  fs.writeFileSync(path.join(dir, 'package.json'), JSON.stringify(pkg));
+  return dir;
+}
+
+/**
+ * Run a launcher script to completion. Standard error goes to a file, not a
+ * pipe: a server the launcher starts inherits it and would otherwise hold a
+ * pipe open until the server stops.
+ * @returns {Promise<{code: number, stdout: string, stderr: string}>}
+ */
+async function runLauncher(script, args = [], { env = {}, timeoutMs = 60000 } = {}) {
+  const errFile = path.join(os.tmpdir(), `mcpfw-err-${crypto.randomBytes(4).toString('hex')}.txt`);
+  const errFd = fs.openSync(errFile, 'w');
+  const child = spawn(process.execPath, [script, ...args], {
+    env: { ...process.env, ...env },
+    stdio: ['ignore', 'pipe', errFd],
+  });
+  fs.closeSync(errFd);
+  let stdout = '';
+  child.stdout.on('data', (d) => { stdout += d; });
+  const timer = setTimeout(() => child.kill('SIGKILL'), timeoutMs);
+  const code = await new Promise((resolve) => child.on('exit', (c) => resolve(c)));
+  clearTimeout(timer);
+  await new Promise((r) => { if (child.stdout.destroyed) r(); else { child.stdout.once('close', r); setTimeout(r, 200); } });
+  const stderr = fs.readFileSync(errFile, 'utf8');
+  fs.rmSync(errFile, { force: true });
+  return { code, stdout, stderr };
+}
+
+/** Start the dummy server in a bad state; returns the child and a stop function. */
+async function startDummy(mode, port, version) {
+  const child = spawn(process.execPath, [path.join(__dirname, 'fixtures', 'dummy-server.js'), mode, String(port), version || '1.0.0'], { stdio: 'ignore' });
+  const end = Date.now() + 5000;
+  while (Date.now() < end) {
+    const up = await new Promise((r) => { const s = net.connect(port, '127.0.0.1'); s.on('connect', () => { s.destroy(); r(true); }); s.on('error', () => r(false)); });
+    if (up) break;
+    await sleep(30);
+  }
+  return { child, stop: () => { try { child.kill('SIGKILL'); } catch { /* gone */ } } };
+}
+
+module.exports = { writeConfig, fixtureVersion, runLauncher, startDummy, tempHome, freePort, sleep, request, rpc, waitForHealth, startServer, FIXTURE, MCP_HEADERS };

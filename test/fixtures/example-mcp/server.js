@@ -7,6 +7,7 @@ const tools = require('./tools');
 class ExampleServer extends McpServerBase {
   async startup(config, log) {
     if (process.env.EXAMPLE_STARTUP === 'throw') throw new Error('startup failed on purpose');
+    if (process.env.EXAMPLE_STARTUP === 'slow') await new Promise((r) => setTimeout(r, 3000));
     log.info('example startup');
     return { calls: 0 };
   }

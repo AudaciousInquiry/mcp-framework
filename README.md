@@ -1,7 +1,7 @@
 ---
 schema_version: '1.0'
 updated:
-  - date: '2026-11-24T04:18:05.204Z'
+  - date: '2026-11-24T04:28:29.964Z'
     user: boonek
     agent:
       name: claude-code
@@ -13,7 +13,7 @@ updated:
       prompt:/claude-code/d670cca5-e0f3-47c9-b239-7d358eabbeb6/~9e7343b6-3205-4e29-8416-e3780929ded3
     summary: >-
       README configuration section; README sections: writing tools, the server
-      class
+      class; README sections: launcher, logging, things worth knowing
 change_request: mcp-framework
 created:
   date: '2026-11-24T04:02:27.000Z'
@@ -29,6 +29,46 @@ configuration and logging.
 ## Five-minute example
 
 ## The launcher definition and the `ctx` object
+
+The launcher file calls `runLauncher(definition)` once. It handles the command line, starts and stops the server and
+runs the stdio bridge; it never loads your tool code.
+
+```js
+runLauncher({ defaultPort: 7561 });
+```
+
+| Field | Meaning |
+|---|---|
+| `defaultPort` | Required. The port the MCP listens on unless the user's `config.json` sets another. |
+| `serverScript` | The server file, relative to the launcher. Default `server.js`. The launcher checks it exists. |
+| `nodeArgs` | Node options placed before the server script, for example `['--max-old-space-size=8192']`. |
+| `startupTimeoutMs` | How long a start waits for the server to become healthy. Default 30000. The setting of the same name in `config.json` wins. |
+| `defaults` | Extra default settings, merged with `port` and written to `config.json` on first run. |
+| `validate` | A function that validates or normalizes a configuration before it is saved. Return a replacement, or throw to reject. |
+| `options` | Extra launcher options: `[{ name: '--rebuild', description: 'Rebuild the index', handler }]`. They appear in `--help`. A name the framework reserves fails at start-up. |
+
+The MCP's name and version are read from its own `package.json`. The name must be usable as a directory name and
+the version must be semver; the launcher fails with a message naming the field otherwise. The launcher also
+checks the Node version first: Node 22 or later is required.
+
+### Running, stopping, restarting
+
+| Command | What it does |
+|---|---|
+| `node index.js` | Start the server as a detached background process and wait until it answers its health check. If the same version is already running it says so and exits 0. An older version is stopped and replaced. A newer version is left alone and the exit is non-zero; stop it with `--stop`, then start normally. |
+| `node index.js --stop` | Stop the running server (graceful first), or say it is not running and exit 0. |
+| `node index.js --restart` | Stop the running server, if any, and start this version. A newer running version is refused. |
+| `node index.js --debug` | Start the server with its log lines also written to the terminal. |
+| `node index.js --log-level debug` | Start the server at that log level. A server that is already running keeps its level and the launcher says a restart is needed. |
+
+A stop asks the server to shut down with `POST /shutdown` (answered within 5 seconds, then up to 30 seconds for the
+process to exit), falls back to terminating it, force-kills it if it is still alive after 15 seconds, waits up to
+5 seconds for the port to free, and removes the process id file. It reports whether the stop was graceful or the
+server was killed.
+
+If the server accepts connections but does not answer a health check (5 second timeout), it is running and may be
+busy: the launcher says so, names its process id, leaves it alone and exits non-zero. If the connection is refused,
+nothing is running: a stale process id file is removed and a server is started.
 
 ## Writing tools
 
@@ -123,6 +163,7 @@ Framework settings:
 | `port` | Port on 127.0.0.1, a whole number from 1 to 65535 | declared by the MCP |
 | `log_level` | `trace`, `debug`, `info`, `warn` or `error` | `info` |
 | `maxBodyBytes` | Largest request body the server accepts | 1048576 (1 MB) |
+| `startupTimeoutMs` | How long a start waits for the server to become healthy | 30000 |
 | `drainMs` | How long a shutdown lets in-flight requests finish | 10000 |
 
 **First run.** The launcher, the bridge and the command-line commands write the defaults to `config.json` when
@@ -140,4 +181,43 @@ and only then updates the object in memory. A rejected update changes nothing.
 
 ## Logging
 
+The server writes `server.log` in the `logs` folder of the data directory, one line per message with a
+timestamp, level, category and message. The log rolls over each day and when a file reaches 10 MB, and keeps the
+7 most recent files. If the folder cannot be written, lines go to standard error and the server keeps running.
+
+**Level.** One of `trace`, `debug`, `info`, `warn`, `error`; the default is `info`. The first of these that is set
+wins: the launcher option `--log-level <level>`, the environment variable named after the MCP (the name in upper
+case with non-alphanumeric characters replaced by `_`, then `_LOG_LEVEL`, for example `MY_MCP_LOG_LEVEL`), the
+`log_level` setting, then `info`. An invalid value fails with a message naming where it came from. The level
+applies in worker threads your MCP starts as well.
+
+**Debug mirror.** `--debug` also writes every log line to standard error. It does not change the level; combine
+it with `--log-level debug` for debug lines. If standard error stops being writable, for example because the
+terminal was closed, the server ignores that and keeps running and keeping its log file.
+
+**Your own logs.** `getLogger('indexer')` returns a named logger that writes to the same file with the same format,
+level and rotation. Every tool call logs its start and its duration and outcome at `info`.
+
+**Fatal errors.** An uncaught exception or unhandled promise rejection writes its stack trace, to the log when
+there is one and to standard error, and the process exits non-zero.
+
 ## Things worth knowing
+
+- **A launcher whose standard error is read through a pipe waits until the server stops.** The server inherits the
+  launcher's standard error and holds it open. At a console there is nothing to wait for. A script or tool that
+  captures the launcher's output through a pipe should send standard error to a file instead.
+- **A default changed in a later version does not reach an existing `config.json`.** Stored values win over defaults.
+- **`POST /shutdown` is the only graceful stop on Windows.** A signal sent to another process with `process.kill`
+  ends it without running its handlers there. SIGTERM and SIGINT work on Linux and macOS, and Ctrl+C in a terminal.
+- **Requests larger than 1 MB are refused with 413.** Raise the `maxBodyBytes` setting if your tools take larger
+  inline arguments.
+
+### Troubleshooting
+
+- **Port in use.** If the occupant answers `/health` like a framework server, the new server exits quietly because
+  one is already running. Otherwise the launcher names the program's answer; change the port with
+  `node index.js init --port <number>`.
+- **A server that will not start.** The launcher reports the exit code. Standard error shows failures from before
+  the logger started; the rest is in `~/.mcp/<name>/logs/server.log`. `--debug` shows the log on the terminal.
+- **A stale process id file.** `server.pid` naming a process that is not running is removed by the next start or
+  `--stop`.

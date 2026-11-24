@@ -15,7 +15,7 @@ created:
     Implementation tasks for mcp-framework, tests and docs per group, release
     last
 updated:
-  - date: '2026-11-24T04:18:07.915Z'
+  - date: '2026-11-24T04:28:35.844Z'
     user: boonek
     agent:
       name: claude-code
@@ -27,7 +27,7 @@ updated:
       prompt:/claude-code/d670cca5-e0f3-47c9-b239-7d358eabbeb6/~9e7343b6-3205-4e29-8416-e3780929ded3
     summary: >-
       Groups 1 to 3 complete; Tasks 4.1-4.6 and 5.1-5.3 done; Group 5 and 6
-      complete
+      complete; Group 7 complete, task 4.7 done
   - date: '2026-11-24T00:05:01.422Z'
     user: boonek
     agent:
@@ -80,7 +80,7 @@ README, whose final assembly is group 13. The release tasks are the last group.
 - [x] 4.4 Provide named loggers for the plugin; verify a test that a logger named `indexer` writes a line with category `indexer` to the same file
 - [x] 4.5 Install handlers for uncaught exceptions and unhandled rejections in the launcher, the server and the bridge that write the stack trace and exit non-zero; verify a test where a timer callback throws in a child process and the trace is written
 - [x] 4.6 Add the debug mirror to standard error, ignoring errors writing to it; verify one test that lines reach a connected standard error and one that the server keeps running and logging when standard error is closed mid-run
-- [ ] 4.7 Document logging in the README (levels, precedence, `--log-level`, rotation, the debug mirror); verify the commands shown run and behave as described
+- [x] 4.7 Document logging in the README (levels, precedence, `--log-level`, rotation, the debug mirror); verify the commands shown run and behave as described
 
 ## 5. Tool declaration and registration
 
@@ -104,14 +104,14 @@ README, whose final assembly is group 13. The release tasks are the last group.
 
 ## 7. Launcher: start, replace, stop
 
-- [ ] 7.1 Write `runLauncher(definition)` with the Node check first, definition validation (default port required, `serverScript` defaulting to `server.js`, `nodeArgs`, `startupTimeoutMs`) and the fixture's `index.js`; verify tests for each validation message including the missing server file
-- [ ] 7.2 Write the health probe: `127.0.0.1`, 5 s timeout, no retries, distinguishing a body, a refused connection and a silent connection; verify tests including a server that accepts and never answers
-- [ ] 7.3 Write the start: remove a stale process id file, detached `spawn` of `process.execPath` with `nodeArgs` first, stdout ignored, stderr inherited and `unref`, then wait for the child exiting, the process id file appearing (then one probe) or the timeout (then a final check and a report naming the pid and log file, leaving the server running, exit non-zero); verify tests for a normal start, a premature exit reporting the code, and a timeout leaving the process alive
-- [ ] 7.4 Write the version-aware start: same version reports already running and exits 0, older is stopped and replaced, newer is refused with or without restart and tells the user to stop it first; verify tests using two fixture versions
-- [ ] 7.5 Write the stop: `POST /shutdown` within 5 s, wait up to 30 s, then terminate and force-kill after 15 s, wait up to 5 s for the port to free, remove the process id file, report graceful or killed; verify tests for the graceful path, the fallback with a server that ignores `/shutdown`, and an immediate restart not hitting a port in use
-- [ ] 7.6 Add `--stop`, `--restart` (also when nothing runs), the unresponsive-server report (refused starts a server and removes a stale file; silent reports the pid and exits non-zero without killing), `--debug`, and `--log-level` passed to the server it starts with a not-applied message for a running one; verify a test for each
-- [ ] 7.7 Write the respawn function for the bridge (the same start path, no console messages, safe for several callers by the port bind); verify a test where several callers respawn at once and one server results
-- [ ] 7.8 Document the launcher in the README (definition fields, run, stop, restart, debug, troubleshooting a port in use, a server that will not start and a stale file, the standard-error pipe caveat, `/shutdown` on Windows); verify every command shown runs against the fixture
+- [x] 7.1 Write `runLauncher(definition)` with the Node check first, definition validation (default port required, `serverScript` defaulting to `server.js`, `nodeArgs`, `startupTimeoutMs`) and the fixture's `index.js`; verify tests for each validation message including the missing server file
+- [x] 7.2 Write the health probe: `127.0.0.1`, 5 s timeout, no retries, distinguishing a body, a refused connection and a silent connection; verify tests including a server that accepts and never answers
+- [x] 7.3 Write the start: remove a stale process id file, detached `spawn` of `process.execPath` with `nodeArgs` first, stdout ignored, stderr inherited and `unref`, then wait for the child exiting, the process id file appearing (then one probe) or the timeout (then a final check and a report naming the pid and log file, leaving the server running, exit non-zero); verify tests for a normal start, a premature exit reporting the code, and a timeout leaving the process alive
+- [x] 7.4 Write the version-aware start: same version reports already running and exits 0, older is stopped and replaced, newer is refused with or without restart and tells the user to stop it first; verify tests using two fixture versions
+- [x] 7.5 Write the stop: `POST /shutdown` within 5 s, wait up to 30 s, then terminate and force-kill after 15 s, wait up to 5 s for the port to free, remove the process id file, report graceful or killed; verify tests for the graceful path, the fallback with a server that ignores `/shutdown`, and an immediate restart not hitting a port in use
+- [x] 7.6 Add `--stop`, `--restart` (also when nothing runs), the unresponsive-server report (refused starts a server and removes a stale file; silent reports the pid and exits non-zero without killing), `--debug`, and `--log-level` passed to the server it starts with a not-applied message for a running one; verify a test for each
+- [x] 7.7 Write the respawn function for the bridge (the same start path, no console messages, safe for several callers by the port bind); verify a test where several callers respawn at once and one server results
+- [x] 7.8 Document the launcher in the README (definition fields, run, stop, restart, debug, troubleshooting a port in use, a server that will not start and a stale file, the standard-error pipe caveat, `/shutdown` on Windows); verify every command shown runs against the fixture
 
 ## 8. Argument mapping
 

@@ -11,7 +11,7 @@ const { probeHealth, hasHealthShape } = require('./probe');
 const { readIdentity } = require('./util/identity');
 const { register } = require('./tools');
 
-const DEFAULTS_ENV = 'MCP_FRAMEWORK_DEFAULTS';
+const { DEFAULTS_ENV } = require('./constants');
 const DEFAULT_MAX_BODY_BYTES = 1048576;
 const DEFAULT_DRAIN_MS = 10000;
 const DISCARD_CAP = 100 * 1024 * 1024;
