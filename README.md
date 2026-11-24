@@ -1,7 +1,7 @@
 ---
 schema_version: '1.0'
 updated:
-  - date: '2026-11-24T04:04:45.392Z'
+  - date: '2026-11-24T04:18:05.204Z'
     user: boonek
     agent:
       name: claude-code
@@ -11,7 +11,9 @@ updated:
       version: '5.5'
     prompt_uri: >-
       prompt:/claude-code/d670cca5-e0f3-47c9-b239-7d358eabbeb6/~9e7343b6-3205-4e29-8416-e3780929ded3
-    summary: README configuration section
+    summary: >-
+      README configuration section; README sections: writing tools, the server
+      class
 change_request: mcp-framework
 created:
   date: '2026-11-24T04:02:27.000Z'
@@ -30,7 +32,77 @@ configuration and logging.
 
 ## Writing tools
 
+Tools are declared once, in a shared file (`tools.js` by convention), with a name, a description and a Zod input
+schema, and no handlers. The launcher reads this file to type command-line arguments without a running server, and
+the server reads it to register the tools.
+
+```js
+const { z } = require('zod');
+const { defineTools } = require('@audaciousinquiry/mcp-framework');
+
+module.exports = defineTools([
+  {
+    name: 'echo',
+    description: 'Return the text it is given.',
+    inputSchema: z.object({ text: z.string().describe('Text to echo') }),
+  },
+]);
+```
+
+`defineTools` checks every declaration and names the tool and the problem when one is wrong. In the server class,
+`this.register(server, tools, handlers)` attaches a handler to each declared tool by name. A handler that is
+missing, or a handler for a tool that is not declared, is an error. Every handler is wrapped: an exception becomes
+an error result with the stack trace logged, and each call's start, duration and outcome are logged at `info`.
+
+A handler may return a string, an object with a `content` array, or any other value (sent as JSON text). The
+helpers `textResult(text)`, `jsonResult(value)` and `errorResult(message)` build results of the standard shape;
+`errorResult` sets the error flag. A schema violation is rejected before the handler runs.
+
+Mark a string field as a file path for the command line with `.meta({ 'x-cli': 'file' })`.
+
 ## The server class
+
+The server file exports a class that extends `McpServerBase` and starts it only when the file is run directly:
+
+```js
+class MyServer extends McpServerBase {
+  registerTools(server, context) { this.register(server, tools, handlers); }
+}
+module.exports = MyServer;
+if (require.main === module) new MyServer().run();
+```
+
+Only `registerTools` is required. The order is `startup`, bind the port, write the process id file,
+`afterListening`. On shutdown the in-flight requests drain, then `shutdown` runs, then the process exits.
+
+| Method | When it runs | Use it for |
+|---|---|---|
+| `startup(config, log)` | Before the port is bound | Create long-lived resources and return them as the context. A throw is logged with its stack and the server exits non-zero without binding. |
+| `registerTools(server, context)` | On every request (required) | Register tools. It must be cheap: register, never create resources. A throw gives a 500 for that request; the server keeps running. |
+| `afterListening(context)` | Once the server is listening | Timers, workers and slow setup such as loading a model. Health answers while it runs. A throw shuts the server down non-zero. |
+| `healthExtension(context)` | On every `/health` | Extra fields. Base fields cannot be overwritten; a throw still gives 200 with an `extension_error` field. |
+| `shutdown(context)` | After in-flight requests drain | Release resources. |
+
+`this.config` and `this.log` are available in every method. The server is stateless: there are no sessions, and
+a client can continue after a restart without a new handshake. State that must outlive a request belongs in the
+context or in your own storage.
+
+**Routes.** `POST /` carries MCP, `GET /health` returns `status`, `version`, `pid` and `uptime_seconds`, and
+`POST /shutdown` starts a graceful stop. Any other route is 404, and `GET` or `DELETE` on `/` is 405.
+
+**Who may call.** The server binds to 127.0.0.1 only. It refuses with 403 any request carrying an `Origin`
+header and any request whose `Host` is not `127.0.0.1`, `localhost` or `[::1]` on its own port, so a web page
+cannot reach it. It sends no CORS headers.
+
+**Request size.** A body over `maxBodyBytes` (1 MB by default) gets 413 and the message names the setting.
+
+**Shutdown.** `POST /shutdown` (the only graceful stop on Windows), SIGTERM and SIGINT stop accepting
+connections, let in-flight requests finish for `drainMs` (10 seconds by default), destroy the rest, run `shutdown`,
+remove the process id file and exit 0. A second trigger is ignored.
+
+**Port in use.** If the port is taken, the server reads the occupant's `/health`. An answer with the base fields
+means this MCP is already running, and the new process exits 0. Anything else is reported and the process exits
+non-zero.
 
 ## The command line
 

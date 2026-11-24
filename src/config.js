@@ -82,9 +82,6 @@ function writeAtomic(fsImpl, file, text) {
  */
 function loadConfig(options) {
   const { name, defaults, writeDefaults = false, validate, fs: fsImpl = fs } = options;
-  if (!defaults || defaults.port === undefined) {
-    throw new Error(`${name}: a default port is required: declare "port" in the defaults`);
-  }
   const file = configFile(name);
   fsImpl.mkdirSync(logsDir(name), { recursive: true });
 
@@ -114,7 +111,10 @@ function loadConfig(options) {
     }
   }
 
-  const config = deepMerge(defaults, stored);
+  const config = deepMerge(defaults || {}, stored);
+  if (config.port === undefined) {
+    throw new Error(`${name}: a default port is required: declare "port" in the defaults`);
+  }
   checkPort(config.port, file);
 
   function check(candidate) {

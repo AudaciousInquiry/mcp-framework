@@ -28,4 +28,33 @@ function validateIdentity(pkg) {
   };
 }
 
-module.exports = { validateIdentity };
+/**
+ * Find and read the nearest package.json at or above a directory, and validate
+ * the name and version in it.
+ * @param {string} startDir
+ * @returns {{name: string, version: string, logLevelVariable: string, dir: string}}
+ */
+function readIdentity(startDir) {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  let dir = path.resolve(startDir);
+  for (;;) {
+    const file = path.join(dir, 'package.json');
+    if (fs.existsSync(file)) {
+      let pkg;
+      try {
+        pkg = JSON.parse(fs.readFileSync(file, 'utf8'));
+      } catch (err) {
+        throw new Error(`${file} is not valid JSON (${err.message})`);
+      }
+      return { ...validateIdentity(pkg), dir };
+    }
+    const parent = path.dirname(dir);
+    if (parent === dir) {
+      throw new Error(`no package.json found at or above ${startDir}; the MCP's name and version are read from it`);
+    }
+    dir = parent;
+  }
+}
+
+module.exports = { validateIdentity, readIdentity };

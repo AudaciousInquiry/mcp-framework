@@ -15,7 +15,7 @@ created:
     Implementation tasks for mcp-framework, tests and docs per group, release
     last
 updated:
-  - date: '2026-11-24T04:07:12.052Z'
+  - date: '2026-11-24T04:18:07.915Z'
     user: boonek
     agent:
       name: claude-code
@@ -25,7 +25,9 @@ updated:
       version: '5.5'
     prompt_uri: >-
       prompt:/claude-code/d670cca5-e0f3-47c9-b239-7d358eabbeb6/~9e7343b6-3205-4e29-8416-e3780929ded3
-    summary: Groups 1 to 3 complete; Tasks 4.1-4.6 and 5.1-5.3 done
+    summary: >-
+      Groups 1 to 3 complete; Tasks 4.1-4.6 and 5.1-5.3 done; Group 5 and 6
+      complete
   - date: '2026-11-24T00:05:01.422Z'
     user: boonek
     agent:
@@ -85,20 +87,20 @@ README, whose final assembly is group 13. The release tasks are the last group.
 - [x] 5.1 Write `defineTools` (name, description and a Zod input schema, validated); verify unit tests for valid and each invalid declaration
 - [x] 5.2 Write the schema conversion with `z.toJSONSchema` keeping `x-cli` markers; verify a unit test that `x-cli: 'file'` survives into the JSON Schema
 - [x] 5.3 Write `register(server, tools, handlers)` and the result helpers: every handler wrapped so an exception becomes an error result with the stack logged, with start, duration and outcome logged; verify tests for a throwing handler, the timing lines, and a schema violation leaving the handler unrun
-- [ ] 5.4 Document writing tools in the README (`defineTools`, `register`, result helpers, errors as results); verify the section's example matches the fixture's `tools.js` once group 6 creates it
+- [x] 5.4 Document writing tools in the README (`defineTools`, `register`, result helpers, errors as results); verify the section's example matches the fixture's `tools.js` once group 6 creates it
 
 ## 6. Server base class and HTTP
 
-- [ ] 6.1 Write `McpServerBase` with `run()` and the order startup, bind, process id file, after-listening, and create the stand-in MCP's `server.js` and `tools.js` in `test/fixtures/example-mcp/`; verify a startup that throws logs the stack, does not bind, writes no process id file and exits non-zero
-- [ ] 6.2 Serve on `127.0.0.1` only with `POST /` for MCP, `GET /health`, `POST /shutdown`, 404 for other routes and 405 for `GET` and `DELETE` on `/`; verify tests for each route and that the non-loopback address is refused
-- [ ] 6.3 Handle MCP requests statelessly with a fresh SDK server and transport per request, calling `registerTools` each time; verify tests for a call after a restart with no new handshake, concurrent clients, no session header, a registration failure giving 500 with the server still running, and malformed JSON
-- [ ] 6.4 Refuse requests carrying an `Origin` header (including preflights, with no CORS headers) and requests with a `Host` other than loopback on the server's port, and reject bodies over `maxBodyBytes` (default 1 MB) with 413 naming the setting; verify tests for a loopback `Origin`, a rebinding `Host`, a body one byte under and over the limit, and an override
-- [ ] 6.5 Write the health endpoint with `status`, `version`, `pid` and whole-number `uptime_seconds`, the plugin extension merged without overwriting base fields, and a failing extension still answering 200; verify a test for each
-- [ ] 6.6 Identify a port occupant by the shape of its `/health` (exit 0 quietly if it has the base fields, report and exit non-zero otherwise, non-bind errors exit non-zero); verify tests with a dummy server on the port
-- [ ] 6.7 Write the process id file after the bind, remove it at shutdown, and remove a stale one at start; verify tests for each
-- [ ] 6.8 Write the graceful shutdown (SIGTERM, SIGINT and `POST /shutdown`; stop accepting, drain for `drainMs` default 10 s, destroy the rest, run the `shutdown` method, remove the process id file, exit 0, ignore a second trigger); verify tests for an in-flight request finishing, one outlasting the drain, the hook completing before exit, and a repeated trigger
-- [ ] 6.9 Handle a failure in `afterListening` (log the stack and shut down cleanly with a non-zero status) and keep slow setup there from blocking health; verify a test for each
-- [ ] 6.10 Document the server class in the README (each overridable method and when it runs, health fields, shutdown, slow setup, the Origin rule and the body limit); verify the method names match the class
+- [x] 6.1 Write `McpServerBase` with `run()` and the order startup, bind, process id file, after-listening, and create the stand-in MCP's `server.js` and `tools.js` in `test/fixtures/example-mcp/`; verify a startup that throws logs the stack, does not bind, writes no process id file and exits non-zero
+- [x] 6.2 Serve on `127.0.0.1` only with `POST /` for MCP, `GET /health`, `POST /shutdown`, 404 for other routes and 405 for `GET` and `DELETE` on `/`; verify tests for each route and that the non-loopback address is refused
+- [x] 6.3 Handle MCP requests statelessly with a fresh SDK server and transport per request, calling `registerTools` each time; verify tests for a call after a restart with no new handshake, concurrent clients, no session header, a registration failure giving 500 with the server still running, and malformed JSON
+- [x] 6.4 Refuse requests carrying an `Origin` header (including preflights, with no CORS headers) and requests with a `Host` other than loopback on the server's port, and reject bodies over `maxBodyBytes` (default 1 MB) with 413 naming the setting; verify tests for a loopback `Origin`, a rebinding `Host`, a body one byte under and over the limit, and an override
+- [x] 6.5 Write the health endpoint with `status`, `version`, `pid` and whole-number `uptime_seconds`, the plugin extension merged without overwriting base fields, and a failing extension still answering 200; verify a test for each
+- [x] 6.6 Identify a port occupant by the shape of its `/health` (exit 0 quietly if it has the base fields, report and exit non-zero otherwise, non-bind errors exit non-zero); verify tests with a dummy server on the port
+- [x] 6.7 Write the process id file after the bind, remove it at shutdown, and remove a stale one at start; verify tests for each
+- [x] 6.8 Write the graceful shutdown (SIGTERM, SIGINT and `POST /shutdown`; stop accepting, drain for `drainMs` default 10 s, destroy the rest, run the `shutdown` method, remove the process id file, exit 0, ignore a second trigger); verify tests for an in-flight request finishing, one outlasting the drain, the hook completing before exit, and a repeated trigger
+- [x] 6.9 Handle a failure in `afterListening` (log the stack and shut down cleanly with a non-zero status) and keep slow setup there from blocking health; verify a test for each
+- [x] 6.10 Document the server class in the README (each overridable method and when it runs, health fields, shutdown, slow setup, the Origin rule and the body limit); verify the method names match the class
 
 ## 7. Launcher: start, replace, stop
 
