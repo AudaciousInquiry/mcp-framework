@@ -15,7 +15,7 @@ created:
     Implementation tasks for mcp-framework, tests and docs per group, release
     last
 updated:
-  - date: '2026-11-24T04:04:57.871Z'
+  - date: '2026-11-24T04:07:12.052Z'
     user: boonek
     agent:
       name: claude-code
@@ -25,7 +25,7 @@ updated:
       version: '5.5'
     prompt_uri: >-
       prompt:/claude-code/d670cca5-e0f3-47c9-b239-7d358eabbeb6/~9e7343b6-3205-4e29-8416-e3780929ded3
-    summary: Groups 1 to 3 complete
+    summary: Groups 1 to 3 complete; Tasks 4.1-4.6 and 5.1-5.3 done
   - date: '2026-11-24T00:05:01.422Z'
     user: boonek
     agent:
@@ -72,19 +72,19 @@ README, whose final assembly is group 13. The release tasks are the last group.
 
 ## 4. Logging
 
-- [ ] 4.1 Write the logging module, the only importer of `log4js`: `server.log` in the `logs` folder, daily and 10 MB roll-over, 7 old files, lines with timestamp, level, category and message, and a fallback to standard error when the folder is not writable; verify tests for the line format, a size roll-over with a lowered limit, and the unwritable folder
-- [ ] 4.2 Resolve the level in the order launcher option, environment variable, `log_level`, default `info`, with a clear error for an invalid value; verify unit tests for every precedence pair and the error text
-- [ ] 4.3 Apply the same level and file in worker threads from the same environment and file; verify a test where a worker thread logs at `debug` and the line appears
-- [ ] 4.4 Provide named loggers for the plugin; verify a test that a logger named `indexer` writes a line with category `indexer` to the same file
-- [ ] 4.5 Install handlers for uncaught exceptions and unhandled rejections in the launcher, the server and the bridge that write the stack trace and exit non-zero; verify a test where a timer callback throws in a child process and the trace is written
-- [ ] 4.6 Add the debug mirror to standard error, ignoring errors writing to it; verify one test that lines reach a connected standard error and one that the server keeps running and logging when standard error is closed mid-run
+- [x] 4.1 Write the logging module, the only importer of `log4js`: `server.log` in the `logs` folder, daily and 10 MB roll-over, 7 old files, lines with timestamp, level, category and message, and a fallback to standard error when the folder is not writable; verify tests for the line format, a size roll-over with a lowered limit, and the unwritable folder
+- [x] 4.2 Resolve the level in the order launcher option, environment variable, `log_level`, default `info`, with a clear error for an invalid value; verify unit tests for every precedence pair and the error text
+- [x] 4.3 Apply the same level and file in worker threads from the same environment and file; verify a test where a worker thread logs at `debug` and the line appears
+- [x] 4.4 Provide named loggers for the plugin; verify a test that a logger named `indexer` writes a line with category `indexer` to the same file
+- [x] 4.5 Install handlers for uncaught exceptions and unhandled rejections in the launcher, the server and the bridge that write the stack trace and exit non-zero; verify a test where a timer callback throws in a child process and the trace is written
+- [x] 4.6 Add the debug mirror to standard error, ignoring errors writing to it; verify one test that lines reach a connected standard error and one that the server keeps running and logging when standard error is closed mid-run
 - [ ] 4.7 Document logging in the README (levels, precedence, `--log-level`, rotation, the debug mirror); verify the commands shown run and behave as described
 
 ## 5. Tool declaration and registration
 
-- [ ] 5.1 Write `defineTools` (name, description and a Zod input schema, validated); verify unit tests for valid and each invalid declaration
-- [ ] 5.2 Write the schema conversion with `z.toJSONSchema` keeping `x-cli` markers; verify a unit test that `x-cli: 'file'` survives into the JSON Schema
-- [ ] 5.3 Write `register(server, tools, handlers)` and the result helpers: every handler wrapped so an exception becomes an error result with the stack logged, with start, duration and outcome logged; verify tests for a throwing handler, the timing lines, and a schema violation leaving the handler unrun
+- [x] 5.1 Write `defineTools` (name, description and a Zod input schema, validated); verify unit tests for valid and each invalid declaration
+- [x] 5.2 Write the schema conversion with `z.toJSONSchema` keeping `x-cli` markers; verify a unit test that `x-cli: 'file'` survives into the JSON Schema
+- [x] 5.3 Write `register(server, tools, handlers)` and the result helpers: every handler wrapped so an exception becomes an error result with the stack logged, with start, duration and outcome logged; verify tests for a throwing handler, the timing lines, and a schema violation leaving the handler unrun
 - [ ] 5.4 Document writing tools in the README (`defineTools`, `register`, result helpers, errors as results); verify the section's example matches the fixture's `tools.js` once group 6 creates it
 
 ## 6. Server base class and HTTP
