@@ -14,7 +14,18 @@ created:
   summary: >-
     Implementation tasks for mcp-framework, tests and docs per group, release
     last
-updated: []
+updated:
+  - date: '2026-11-24T00:05:01.422Z'
+    user: boonek
+    agent:
+      name: claude-code
+      version: unknown
+    llm:
+      name: claude-sonnet-5-5
+      version: '5.5'
+    prompt_uri: >-
+      prompt:/claude-code/d670cca5-e0f3-47c9-b239-7d358eabbeb6/~94b68a64-4b39-4688-8736-46e881d11b48
+    summary: 'Task 1.4 settled: Apache-2.0'
 change_request: mcp-framework
 ---
 # Tasks
@@ -27,7 +38,7 @@ README, whose final assembly is group 13. The release tasks are the last group.
 - [ ] 1.1 Fetch `origin/main`, fast-forward, and create the implementation branch; verify `git status -sb` shows the new branch based on the latest `main`
 - [ ] 1.2 Propose the initial version (suggested `0.1.0`) and wait for the user's confirmation before writing it; verify the user confirmed the number
 - [ ] 1.3 Create `package.json`: name `@audaciousinquiry/mcp-framework`, CommonJS, `engines.node` `>=22`, `files` `src/`, `README.md`, `LICENSE`, scripts `test` (`node --test`), dependencies SDK `^1.32` and `log4js` `^6.9`, peer dependency `zod` `^4.4` (also a dev dependency); verify `npm install` succeeds
-- [ ] 1.4 Ask the user which license applies, then add `LICENSE`; verify the file matches the chosen license and `package.json` names it
+- [ ] 1.4 Add `LICENSE` with the Apache License 2.0 text (decided 2026-11-23, consistent with prompt-url and the IZ Gateway Java repos); set `"license": "Apache-2.0"` in `package.json`; verify the file and `package.json` match
 - [ ] 1.5 Run `npm audit fix` after the install; verify `npm audit --audit-level=high` reports no high or critical finding
 - [ ] 1.6 Add a trivial `test/smoke.test.js` and `.github/workflows/test.yml` (push, pull request and `workflow_call`; `ubuntu-latest`; Node 22 and 24; `npm ci`, `npm audit fix`, `npm audit --audit-level=high`, `npm test`); verify both jobs pass on GitHub
 - [ ] 1.7 Create a `README.md` skeleton with the section headings from design 11.4; verify the headings are present in that order
