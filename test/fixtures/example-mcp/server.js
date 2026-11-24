@@ -43,7 +43,7 @@ class ExampleServer extends McpServerBase {
   healthExtension(context) {
     if (process.env.EXAMPLE_HEALTH === 'throw') throw new Error('health extension failed on purpose');
     if (process.env.EXAMPLE_HEALTH === 'clash') return { status: 'bad', pid: -1, example: true };
-    return { example: true, calls: context.calls };
+    return { example: true, calls: context.calls, configuredPort: this.config.port, hasLogger: typeof this.log.info === 'function' };
   }
 
   async shutdown(context) {

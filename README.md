@@ -1,7 +1,7 @@
 ---
 schema_version: '1.0'
 updated:
-  - date: '2026-11-24T07:44:09.508Z'
+  - date: '2026-11-24T07:49:16.334Z'
     user: boonek
     agent:
       name: claude-code
@@ -15,7 +15,10 @@ updated:
       README configuration section; README sections: writing tools, the server
       class; README sections: launcher, logging, things worth knowing; README:
       the command line and argument mapping; README: init command, more
-      definition fields; README: registering with a client and the stdio bridge
+      definition fields; README: registering with a client and the stdio bridge;
+      README: public contract and semver policy; README: what it is, five-minute
+      example from the fixture, ctx; README: tools section refers to the example
+      file
 change_request: mcp-framework
 created:
   date: '2026-11-24T04:02:27.000Z'
@@ -28,7 +31,111 @@ configuration and logging.
 
 ## What it is
 
+An MCP server that runs on your own machine needs the same machinery every time: a background process that
+stays up between agent sessions, a way to start, stop and restart it, a bridge for clients that only speak over
+standard input and output, a command line to try the tools by hand, a settings file and a log. `mcp-framework`
+provides all of that, so an MCP is only its tools.
+
+- **A detached HTTP daemon** on `127.0.0.1`, stateless, with `/health`, a graceful `/shutdown`, and protection
+  against web pages reaching it.
+- **A launcher** that starts it on demand, waits until it is healthy, replaces an older version, and stops it.
+- **A stdio bridge** (`--stdio`) that recovers when the server dies, so clients never need restarting.
+- **A command line** (`health`, `list`, `call`, `init`) that types arguments from your tools' Zod schemas.
+- **Configuration** in `~/.mcp/<name>/config.json` and a **rotating log**.
+
+It needs Node.js 22 or later. It is plain CommonJS with JSDoc types and no build step, and works from ES modules too.
+
+### Installation
+
+```sh
+npm install @audaciousinquiry/mcp-framework zod
+```
+
+`zod` (version 4) is a peer dependency, so your schemas and the framework share one copy.
+
 ## Five-minute example
+
+An MCP is three files. Start in an empty folder:
+
+```sh
+mkdir my-mcp && cd my-mcp
+npm init -y
+npm install @audaciousinquiry/mcp-framework zod
+```
+
+Set `"name": "my-mcp"` in `package.json` (the name is also the name of the data directory), then add the files.
+
+**`tools.js`** declares the tools: a name, a description and a Zod schema, and no handlers. The launcher and the
+server both load it.
+
+<!-- example: readme-mcp/tools.js -->
+```js
+'use strict';
+
+const { z } = require('zod');
+const { defineTools } = require('@audaciousinquiry/mcp-framework');
+
+module.exports = defineTools([
+  {
+    name: 'echo',
+    description: 'Return the text it is given.',
+    inputSchema: z.object({ text: z.string().describe('Text to echo') }),
+  },
+  {
+    name: 'add',
+    description: 'Add two whole numbers.',
+    inputSchema: z.object({ a: z.number().int(), b: z.number().int() }),
+  },
+]);
+```
+
+**`server.js`** exports a class that extends `McpServerBase` and attaches a handler to each tool.
+
+<!-- example: readme-mcp/server.js -->
+```js
+'use strict';
+
+const { McpServerBase, textResult } = require('@audaciousinquiry/mcp-framework');
+const tools = require('./tools');
+
+class MyServer extends McpServerBase {
+  registerTools(server, context) {
+    this.register(server, tools, {
+      echo: ({ text }) => textResult(text),
+      add: ({ a, b }) => textResult(String(a + b)),
+    });
+  }
+}
+
+module.exports = MyServer;
+
+if (require.main === module) new MyServer().run();
+```
+
+**`index.js`** is the launcher. It needs the default port and your tools file.
+
+<!-- example: readme-mcp/index.js -->
+```js
+#!/usr/bin/env node
+'use strict';
+
+const { runLauncher } = require('@audaciousinquiry/mcp-framework');
+
+runLauncher({ defaultPort: 7561, tools: require('./tools') });
+```
+
+Now run it:
+
+```sh
+node index.js                          # starts the server in the background; prints its process id
+node index.js list                     # the tools and their parameters
+node index.js call echo --text hello   # prints: hello
+node index.js call add --a 2 --b 3     # prints: 5
+node index.js --stop                   # stops it
+```
+
+To use it from an agent, register it over stdio (`claude mcp add my-mcp -- node /full/path/to/index.js --stdio`) or
+over HTTP (see Registering with a client). `node index.js init` prints the exact lines for your MCP.
 
 ## The launcher definition and the `ctx` object
 
@@ -59,6 +166,19 @@ The MCP's name and version are read from its own `package.json`. The name must b
 the version must be semver; the launcher fails with a message naming the field otherwise. The launcher also
 checks the Node version first: Node 22 or later is required.
 
+### The `ctx` object
+
+Every hook you give the launcher (`defaultArguments`, `onBridgeStart`, and the handler of each added option)
+receives one object, `ctx`:
+
+- `ctx.config`: the merged configuration, with its `save` function.
+- `ctx.client`: calls the server's tools the way the command line does: `await ctx.client.callTool('echo', { text: 'hi' })`
+  returns `{ isError, text, content }`. It never starts a server.
+- `ctx.log`: a logger that writes to `launcher.log` in the same `logs` folder.
+
+In the server class the configuration and the logger are `this.config` and `this.log`, and the object your `startup`
+method returns is passed to the other methods as the context.
+
 ### Running, stopping, restarting
 
 | Command | What it does |
@@ -84,18 +204,7 @@ Tools are declared once, in a shared file (`tools.js` by convention), with a nam
 schema, and no handlers. The launcher reads this file to type command-line arguments without a running server, and
 the server reads it to register the tools.
 
-```js
-const { z } = require('zod');
-const { defineTools } = require('@audaciousinquiry/mcp-framework');
-
-module.exports = defineTools([
-  {
-    name: 'echo',
-    description: 'Return the text it is given.',
-    inputSchema: z.object({ text: z.string().describe('Text to echo') }),
-  },
-]);
-```
+The `tools.js` in the five-minute example above is such a file.
 
 `defineTools` checks every declaration and names the tool and the problem when one is wrong. In the server class,
 `this.register(server, tools, handlers)` attaches a handler to each declared tool by name. A handler that is
@@ -369,6 +478,24 @@ level and rotation. Every tool call logs its start and its duration and outcome 
 
 **Fatal errors.** An uncaught exception or unhandled promise rejection writes its stack trace, to the log when
 there is one and to standard error, and the process exits non-zero.
+
+## The public contract
+
+The framework follows semantic versioning. Removing or changing the meaning of anything listed here is a major
+version change; adding to it is a minor change; a fix is a patch. Anything not listed (the internal modules, the wording of
+messages and log lines, the files under `src/` other than the package entry) is not part of the contract.
+
+### Public contract items
+
+- **Exports:** `runLauncher`, `McpServerBase`, `defineTools`, `register`, `textResult`, `jsonResult`, `errorResult`, `getLogger`
+- **Launcher definition fields:** `defaultPort`, `serverScript`, `nodeArgs`, `startupTimeoutMs`, `defaults`, `validate`, `options`, `tools`, `settings`, `promptable`, `defaultArguments`, `onBridgeStart`, `bridgeTimeoutMs`
+- **Server methods you override:** `startup`, `registerTools`, `afterListening`, `healthExtension`, `shutdown`
+- **Objects your code receives:** `ctx` (with `ctx.config`, `ctx.client`, `ctx.log`), `this.config`, `this.log`
+- **Settings:** `port`, `log_level`, `maxBodyBytes`, `drainMs`, `startupTimeoutMs`
+- **Server routes and health fields:** `/health` with `status`, `version`, `pid`, `uptime_seconds`, and `/shutdown`
+- **Data directory:** `~/.mcp/<name>/` holding `config.json`, `server.pid` and `logs/server.log`
+- **Launcher options:** `--stdio`, `--stop`, `--restart`, `--debug`, `--log-level`, `--help`
+- **Launcher commands:** `health`, `list`, `call`, `init`
 
 ## Things worth knowing
 

@@ -151,7 +151,12 @@ async function runBridge(c, createContext) {
   stdio.onerror = (err) => stderr(`${identity.name}: ${err && err.message ? err.message : err}`);
 
   const input = c.io.stdin || process.stdin;
-  const end = () => finish(0);
+  // When the client closes standard input, let requests already forwarded finish (up to 30 s), then exit.
+  const end = async () => {
+    const give = Date.now() + Math.min(timeoutMs, 30000);
+    while (inflight.size > 0 && !recovering && Date.now() < give) await new Promise((r) => setTimeout(r, 25));
+    finish(0);
+  };
   input.on('end', end);
   input.on('close', end);
 

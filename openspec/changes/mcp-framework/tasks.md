@@ -15,7 +15,7 @@ created:
     Implementation tasks for mcp-framework, tests and docs per group, release
     last
 updated:
-  - date: '2026-11-24T07:44:14.879Z'
+  - date: '2026-11-24T07:49:56.108Z'
     user: boonek
     agent:
       name: claude-code
@@ -28,7 +28,8 @@ updated:
     summary: >-
       Groups 1 to 3 complete; Tasks 4.1-4.6 and 5.1-5.3 done; Group 5 and 6
       complete; Group 7 complete, task 4.7 done; Groups 8 and 9 complete; Group
-      10 complete; Group 11 complete; test script note
+      10 complete; Group 11 complete; test script note; Group 12 complete; Group
+      13 complete
   - date: '2026-11-24T00:05:01.422Z'
     user: boonek
     agent:
@@ -156,16 +157,16 @@ README, whose final assembly is group 13. The release tasks are the last group.
 
 ## 12. The plugin contract
 
-- [ ] 12.1 Provide `ctx` (`config`, `client`, `log`) to every launcher hook and `this.config` and `this.log` in the server; verify tests that each is present and that `ctx.client` can call a tool
-- [ ] 12.2 Support extra launcher options with help text and handlers and fail at start-up on a name the framework reserves; verify tests for an added option, its help line and a collision
-- [ ] 12.3 Export `runLauncher`, `McpServerBase`, `defineTools`, `register` and the result helpers from the package entry; verify a test loads them from CommonJS and from an ES module
-- [ ] 12.4 Document the public contract and the semver policy in the README, listing the items from the plugin-contract spec; verify each listed item exists in the code
-- [ ] 12.5 Check that the fixture's three files support every mode (`--stdio`, `--stop`, `--restart`, `--debug`, `--help`, `health`, `list`, `call`, `init`); verify one test runs each mode
+- [x] 12.1 Provide `ctx` (`config`, `client`, `log`) to every launcher hook and `this.config` and `this.log` in the server; verify tests that each is present and that `ctx.client` can call a tool
+- [x] 12.2 Support extra launcher options with help text and handlers and fail at start-up on a name the framework reserves; verify tests for an added option, its help line and a collision
+- [x] 12.3 Export `runLauncher`, `McpServerBase`, `defineTools`, `register` and the result helpers from the package entry; verify a test loads them from CommonJS and from an ES module
+- [x] 12.4 Document the public contract and the semver policy in the README, listing the items from the plugin-contract spec; verify each listed item exists in the code
+- [x] 12.5 Check that the fixture's three files support every mode (`--stdio`, `--stop`, `--restart`, `--debug`, `--help`, `health`, `list`, `call`, `init`); verify one test runs each mode
 
 ## 13. The README integration guide
 
-- [ ] 13.1 Assemble the README in the order of design 11.4 from the sections written earlier, with the example code blocks generated from the fixture's files; verify a test that every example block equals the corresponding fixture file
-- [ ] 13.2 Create `doc/index.md` as the documentation entry point linking the README and the design; verify the links resolve
+- [x] 13.1 Assemble the README in the order of design 11.4 from the sections written earlier, with the example code blocks generated from the fixture's files; verify a test that every example block equals the corresponding fixture file
+- [x] 13.2 Create `doc/index.md` as the documentation entry point linking the README and the design; verify the links resolve
 
 ## 14. Integration checks
 

@@ -122,6 +122,8 @@ test('every README argument example runs and produces what the table says', asyn
   assert.ok(rows.length >= 30, `found ${rows.length} examples`);
   for (const row of rows) {
     for (const [shell, line, split] of [['POSIX', row.posix, splitPosix], ['cmd.exe', row.cmd, splitCmd]]) {
+      // A backslash separates path parts only on Windows, so the cmd.exe path example is checked there.
+      if (shell === 'cmd.exe' && row.expected.includes('<cwd>/') && process.platform !== 'win32') continue;
       const out = []; const err = [];
       const code = await launch(
         { defaultPort: 7561, tools: require('./fixtures/example-mcp/tools') },
