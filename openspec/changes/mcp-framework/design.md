@@ -15,6 +15,17 @@ created:
     Design draft with approved Decisions 1 and 2 (launcher entry point; two
     files with a server base class and detached spawn)
 updated:
+  - date: '2026-11-24T14:29:30.841Z'
+    user: boonek
+    agent:
+      name: claude-code
+      version: unknown
+    llm:
+      name: claude-sonnet-5-5
+      version: '5.5'
+    prompt_uri: >-
+      prompt:/claude-code/d670cca5-e0f3-47c9-b239-7d358eabbeb6/~96807055-c79b-4c7e-985c-4481dd31a909
+    summary: Remove md-csv-mcp details from design.md; names only (user decision 14.3)
   - date: '2026-11-23T22:19:14.550Z'
     user: boonek
     agent:
@@ -532,7 +543,7 @@ reason to standard error and exits non-zero without writing to standard output; 
 once the server is healthy and again after each respawn.
 
 **State a plugin needs per agent session.** The framework has no session concept. A plugin that must know who
-is calling, as md-csv-mcp does by registering the agent session through a tool call at start-up, does that in
+is calling does that in
 the start-up hook and keeps what it registers in its own storage. That is part of the migration, not of the
 framework.
 
@@ -563,7 +574,7 @@ the old value, because stored values win; the README says so.
 stores the current configuration, including changes made in place. With a partial set of settings it merges
 them into a copy, validates the copy, writes it, and only then updates the in-memory configuration, so a
 rejected update changes nothing. The MCP may supply a function that validates or normalizes the configuration.
-The framework promises no further plugin-facing save API: a command such as md-csv-mcp's `--enable-bi` is
+The framework promises no further plugin-facing save API: a launcher option that changes a setting is
 written in that MCP's migration and calls this function.
 
 **8.4 Merging.** Stored values are merged over the defaults with a small function of our own (about fifteen
