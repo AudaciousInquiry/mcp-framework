@@ -241,3 +241,34 @@ test('respawn: several callers at once end with one healthy server', async (t) =
   assert.ok(again.ok);
   assert.strictEqual((await request(port, { path: '/health' })).json.pid, health.pid);
 });
+
+test('a corrupt configuration file stops the start: no server, exit non-zero, the file named', async (t) => {
+  const { port } = await setup(t);
+  const file = config.configFile(NAME);
+  fs.writeFileSync(file, '{ "port": ');
+  const r = await runLauncher(INDEX);
+  assert.notStrictEqual(r.code, 0);
+  assert.ok(r.stderr.includes(file), r.stderr);
+  assert.match(r.stderr, /not valid JSON.*correct the file and run the command again/);
+  assert.strictEqual(fs.readFileSync(file, 'utf8'), '{ "port": ', 'the file is left as it was');
+  await assert.rejects(request(port, { path: '/health' }), /ECONNREFUSED/);
+});
+
+test('the standard output of the server is discarded', async (t) => {
+  await setup(t);
+  const r = await runLauncher(INDEX, [], { env: { EXAMPLE_STDOUT: '1' } });
+  assert.strictEqual(r.code, 0, r.stderr);
+  assert.doesNotMatch(r.stdout, /server stdout line/);
+  assert.doesNotMatch(r.stderr, /server stdout line/);
+});
+
+test('the process id file does not exist until the port is bound', async (t) => {
+  const { port } = await setup(t, { startupTimeoutMs: 600 });
+  const r = await runLauncher(INDEX, [], { env: { EXAMPLE_STARTUP: 'slow' } });
+  assert.notStrictEqual(r.code, 0, 'timed out while the server was still starting');
+  assert.ok(!fs.existsSync(config.pidFile(NAME)), 'no process id file before the bind');
+  const end = Date.now() + 15000;
+  while (Date.now() < end && !fs.existsSync(config.pidFile(NAME))) await sleep(100);
+  assert.ok(fs.existsSync(config.pidFile(NAME)), 'written once bound');
+  assert.strictEqual((await request(port, { path: '/health' })).status, 200);
+});

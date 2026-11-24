@@ -338,3 +338,34 @@ test('slow setup after listening does not block health', async (t) => {
   assert.strictEqual((await request(s.port, { path: '/health' })).status, 200);
   assert.strictEqual((await call(s.port, 'add', { a: 1, b: 2 })).reply.result.content[0].text, '3');
 });
+
+test('state that spans requests lives in the context the server keeps', async (t) => {
+  const h = tempHome(); t.after(h.restore);
+  const s = await startServer(); t.after(() => s.stop());
+  await call(s.port, 'echo', { text: 'one' });
+  await call(s.port, 'echo', { text: 'two' });
+  assert.strictEqual((await request(s.port, { path: '/health' })).json.calls, 2, 'the same context served both requests');
+});
+
+test('order of hooks: startup first, then the bind, then afterListening', async (t) => {
+  const h = tempHome(); t.after(h.restore);
+  const s = await startServer(); t.after(() => s.stop());
+  const text = logText();
+  assert.ok(text.indexOf('example startup') >= 0 && text.indexOf('listening on') > text.indexOf('example startup'));
+});
+
+test('an invalid log level fails the start and names where it came from', async (t) => {
+  const h = tempHome(); t.after(h.restore);
+  const s = await startServer({ env: { EXAMPLE_MCP_LOG_LEVEL: 'loud' }, waitHealthy: false });
+  const { code } = await s.exited;
+  assert.notStrictEqual(code, 0);
+  assert.match(s.stderr, /EXAMPLE_MCP_LOG_LEVEL is "loud".*trace, debug, info, warn, error/);
+});
+
+test('the environment variable overrides the level setting for one run', async (t) => {
+  const h = tempHome(); t.after(h.restore);
+  const s = await startServer({ defaults: { log_level: 'debug' }, env: { EXAMPLE_MCP_LOG_LEVEL: 'error' } });
+  t.after(() => s.stop());
+  await call(s.port, 'echo', { text: 'quiet' });
+  assert.doesNotMatch(logText(), /tool echo start/, 'info lines are not written when the level is error');
+});

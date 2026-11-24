@@ -195,3 +195,8 @@ test('settings schema: types from declared schema, then from defaults; null defa
     { flag: false, n: 4, list: [5, 6], nested: { a: true }, nothing: 'v' });
   assert.strictEqual(describeArguments(schema).find((r) => r.name === 'nothing').type, 'untyped (sent as a string)');
 });
+
+test('a scalar from the JSON is not turned into an object by a dotted argument', () => {
+  const shape = { p: z.object({ agent: z.string().optional() }).optional() };
+  assert.throws(() => run(shape, ['--p.agent', 'x'], { base: { p: 'a string' } }), /--p.agent: p is not an object/);
+});

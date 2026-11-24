@@ -126,3 +126,12 @@ test('save: a failed write leaves the old file complete', (t) => {
   assert.strictEqual(c.n, 5);
   assert.deepStrictEqual(fs.readdirSync(config.dataDir('a')).filter((f) => f.endsWith('.tmp')), []);
 });
+
+test('an unknown key in the file is kept when the configuration is saved', (t) => {
+  const h = tempHome(); t.after(h.restore);
+  config.ensureDataDir('a');
+  fs.writeFileSync(config.configFile('a'), '{"port": 5, "extra": {"keep": true}}');
+  const c = config.loadConfig({ name: 'a', defaults: { port: 5 } });
+  c.save({ port: 6 });
+  assert.deepStrictEqual(JSON.parse(fs.readFileSync(config.configFile('a'), 'utf8')), { port: 6, extra: { keep: true } });
+});
