@@ -227,7 +227,7 @@ test('port in use by the same MCP: exit 0 quietly', async (t) => {
   const h = tempHome(); t.after(h.restore);
   const port = await freePort();
   const srv = await dummy(port, (req, res) => {
-    res.end(JSON.stringify({ status: 'ok', version: '0.0.1', pid: 1, uptime_seconds: 3 }));
+    res.end(JSON.stringify({ status: 'ok', version: '0.0.1', pid: 4321, uptime_seconds: 3 }));
   });
   t.after(() => srv.close());
   const s = await startServer({ port, waitHealthy: false });
@@ -268,7 +268,9 @@ test('process id file: written after the bind, replaces a stale one, removed at 
   config.ensureDataDir(NAME);
   fs.writeFileSync(config.pidFile(NAME), '2147483646');
   const s = await startServer();
-  assert.strictEqual(fs.readFileSync(config.pidFile(NAME), 'utf8'), String(s.child.pid));
+  const info = JSON.parse(fs.readFileSync(config.pidFile(NAME), 'utf8'));
+  assert.strictEqual(info.pid, s.child.pid);
+  assert.match(info.token, /^[0-9a-f]{64}$/, 'a random bearer token for /shutdown');
   await s.stop();
   assert.ok(!fs.existsSync(config.pidFile(NAME)));
 });
@@ -279,7 +281,7 @@ test('shutdown: an in-flight request finishes, the hook completes, exit is zero'
   const s = await startServer({ env: { EXAMPLE_MARKER: marker } });
   const slow = call(s.port, 'sleep', { ms: 700 });
   await sleep(150);
-  const stop = await request(s.port, { method: 'POST', path: '/shutdown' });
+  const stop = await helpers.postShutdown(s.port);
   assert.strictEqual(stop.status, 200);
   const done = await slow;
   assert.strictEqual(done.reply.result.content[0].text, 'slept 700');
@@ -295,7 +297,7 @@ test('shutdown: a request that outlasts the drain is cut off and the server stil
   const slow = call(s.port, 'sleep', { ms: 20000 }).then(() => 'answered', () => 'cut');
   await sleep(150);
   const started = Date.now();
-  await request(s.port, { method: 'POST', path: '/shutdown' });
+  await helpers.postShutdown(s.port);
   const { code } = await s.exited;
   assert.strictEqual(code, 0);
   assert.ok(Date.now() - started < 8000, 'did not wait for the 20 s request');
@@ -306,8 +308,8 @@ test('shutdown: a repeated trigger is ignored', async (t) => {
   const h = tempHome(); t.after(h.restore);
   const marker = path.join(h.home, 'marker.txt');
   const s = await startServer({ env: { EXAMPLE_MARKER: marker } });
-  const a = request(s.port, { method: 'POST', path: '/shutdown' });
-  const b = request(s.port, { method: 'POST', path: '/shutdown' }).catch(() => ({ status: 'closed' }));
+  const a = helpers.postShutdown(s.port);
+  const b = helpers.postShutdown(s.port).catch(() => ({ status: 'closed' }));
   await Promise.all([a, b]);
   const { code } = await s.exited;
   assert.strictEqual(code, 0);
@@ -350,6 +352,9 @@ test('state that spans requests lives in the context the server keeps', async (t
 test('order of hooks: startup first, then the bind, then afterListening', async (t) => {
   const h = tempHome(); t.after(h.restore);
   const s = await startServer(); t.after(() => s.stop());
+  // The log is written asynchronously, so wait for the line instead of reading it at once.
+  const end = Date.now() + 5000;
+  while (Date.now() < end && !logText().includes('listening on')) await sleep(50);
   const text = logText();
   assert.ok(text.indexOf('example startup') >= 0 && text.indexOf('listening on') > text.indexOf('example startup'));
 });
@@ -368,4 +373,29 @@ test('the environment variable overrides the level setting for one run', async (
   t.after(() => s.stop());
   await call(s.port, 'echo', { text: 'quiet' });
   assert.doesNotMatch(logText(), /tool echo start/, 'info lines are not written when the level is error');
+});
+
+test('/shutdown needs the bearer token from the process id file', async (t) => {
+  const h = tempHome(); t.after(h.restore);
+  const s = await startServer(); t.after(() => s.stop());
+  const token = JSON.parse(fs.readFileSync(config.pidFile(NAME), 'utf8')).token;
+  const none = await request(s.port, { method: 'POST', path: '/shutdown' });
+  assert.strictEqual(none.status, 401);
+  for (const header of ['Bearer wrong', `Bearer ${token.slice(0, -1)}${token.endsWith('0') ? '1' : '0'}`, `Basic ${token}`, token, `Bearer ${token}x`]) {
+    const r = await request(s.port, { method: 'POST', path: '/shutdown', headers: { Authorization: header } });
+    assert.strictEqual(r.status, 401, header);
+  }
+  assert.strictEqual((await request(s.port, { path: '/health' })).status, 200, 'still running after every refusal');
+  const ok = await request(s.port, { method: 'POST', path: '/shutdown', headers: { Authorization: `Bearer ${token}` } });
+  assert.strictEqual(ok.status, 200);
+  assert.strictEqual((await s.exited).code, 0);
+});
+
+test('every server start makes a new token', async (t) => {
+  const h = tempHome(); t.after(h.restore);
+  const a = await startServer();
+  const first = JSON.parse(fs.readFileSync(config.pidFile(NAME), 'utf8')).token;
+  await a.stop();
+  const b = await startServer(); t.after(() => b.stop());
+  assert.notStrictEqual(JSON.parse(fs.readFileSync(config.pidFile(NAME), 'utf8')).token, first);
 });

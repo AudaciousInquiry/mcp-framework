@@ -271,12 +271,16 @@ function isPlainObject(v) {
   return v !== null && typeof v === 'object' && !Array.isArray(v);
 }
 
+const UNSAFE = new Set(['__proto__', 'constructor', 'prototype']);
+
 function setAtPath(root, segments, value, flagLabel) {
+  const bad = segments.find((seg) => UNSAFE.has(seg));
+  if (bad) throw fail(`${flagLabel}: "${bad}" is not allowed in an argument name`);
   let node = root;
   for (let i = 0; i < segments.length - 1; i++) {
     const seg = segments[i];
     const nextIsIndex = /^\d+$/.test(segments[i + 1]);
-    let child = node[seg];
+    let child = Object.prototype.hasOwnProperty.call(node, seg) ? node[seg] : undefined;
     if (child === undefined || child === null) {
       child = nextIsIndex ? [] : {};
       node[seg] = child;

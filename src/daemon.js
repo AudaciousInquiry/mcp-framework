@@ -12,7 +12,7 @@ const fs = require('node:fs');
 const http = require('node:http');
 const path = require('node:path');
 const { spawn } = require('node:child_process');
-const { dataDir, pidFile, logsDir } = require('./config');
+const { dataDir, pidFile, logsDir, readPidInfo } = require('./config');
 const { DEFAULTS_ENV } = require('./constants');
 const { probeHealth, hasHealthShape } = require('./probe');
 const { compareVersions } = require('./util/version');
@@ -35,12 +35,8 @@ function sleep(ms) {
 
 /** @param {object} d @returns {number|null} the process id in the file, or null */
 function readPid(d) {
-  try {
-    const pid = Number(fs.readFileSync(pidFile(d.name), 'utf8').trim());
-    return Number.isInteger(pid) && pid > 0 ? pid : null;
-  } catch {
-    return null;
-  }
+  const info = readPidInfo(d.name);
+  return info ? info.pid : null;
 }
 
 /** @param {number} pid @returns {boolean} */
@@ -171,10 +167,14 @@ async function startAndWait(d, options = {}) {
   });
 }
 
-function postShutdown(port, timeoutMs) {
+// The bearer token is read from the process id file, and sent only when the file names the process
+// that answered /health, so it is never handed to an unrelated listener on the port.
+function postShutdown(d, pid, timeoutMs) {
+  const info = readPidInfo(d.name);
+  if (!info || info.pid !== pid || !info.token) return Promise.resolve(false);
   return new Promise((resolve) => {
     const req = http.request(
-      { host: '127.0.0.1', port, path: '/shutdown', method: 'POST', timeout: timeoutMs, agent: false },
+      { host: '127.0.0.1', port: d.port, path: '/shutdown', method: 'POST', timeout: timeoutMs, agent: false, headers: { Authorization: `Bearer ${info.token}` } },
       (res) => { res.resume(); res.on('end', () => resolve(res.statusCode === 200)); res.on('error', () => resolve(false)); }
     );
     req.on('timeout', () => { req.destroy(); resolve(false); });
@@ -210,15 +210,20 @@ async function waitForPortFree(port, ms) {
  * remove the process id file.
  * @param {object} d
  * @param {number} pid
- * @returns {Promise<'graceful'|'killed'>}
+ * @returns {Promise<'graceful'|'killed'|'unverified'>} `unverified` when the process would have to be
+ *   killed but the process id file does not name it, so it is not known to be this MCP's server
  */
 async function stopProcess(d, pid) {
   const t = timeouts(d);
   let graceful = false;
-  if (await postShutdown(d.port, t.shutdownRequestMs)) {
-    graceful = await waitForExit(pid, t.gracefulExitMs);
+  if (await postShutdown(d, pid, t.shutdownRequestMs)) {
+    // Wait longer than the server's own drain time, so a busy server is not killed mid-shutdown.
+    const wait = Math.max(t.gracefulExitMs, (d.drainMs || 0) + 20000);
+    graceful = await waitForExit(pid, wait);
   }
   if (!graceful) {
+    // Only kill a process the server itself recorded; /health alone could come from an unrelated listener.
+    if (readPid(d) !== pid) return 'unverified';
     try { process.kill(pid); } catch { /* already gone */ }
     if (!(await waitForExit(pid, t.killGraceMs))) {
       try { process.kill(pid, 'SIGKILL'); } catch { /* already gone */ }
@@ -228,6 +233,11 @@ async function stopProcess(d, pid) {
   await waitForPortFree(d.port, t.portFreeMs);
   removePidFile(d);
   return graceful ? 'graceful' : 'killed';
+}
+
+function unverifiedMessage(d, pid) {
+  return `the server on port ${d.port} (pid ${pid}) did not shut down on request, and its process id file does not name it, ` +
+    `so it was not killed. Stop that process yourself if it is ${d.name}.`;
 }
 
 function newerMessage(d, running) {
@@ -259,7 +269,7 @@ async function ensureRunning(d, options = {}) {
       return { ok: true, status: 'already-running', pid: r.health.pid, message: `${d.name} is already running (version ${r.health.version}, pid ${r.health.pid})${note}` };
     }
     d.say(`${d.name} ${r.health.version} is running; replacing it with ${d.version}`);
-    await stopProcess(d, r.health.pid);
+    if ((await stopProcess(d, r.health.pid)) === 'unverified') return { ok: false, status: 'unverified', message: unverifiedMessage(d, r.health.pid) };
     const started = await startAndWait(d, options);
     return started.ok ? { ...started, status: 'replaced' } : started;
   }
@@ -283,6 +293,7 @@ async function restart(d, options = {}) {
       return { ok: false, status: 'newer', pid: r.health.pid, message: newerMessage(d, r.health.version) };
     }
     const how = await stopProcess(d, r.health.pid);
+    if (how === 'unverified') return { ok: false, status: 'unverified', message: unverifiedMessage(d, r.health.pid) };
     d.say(`${d.name} (pid ${r.health.pid}) stopped${how === 'killed' ? ' (killed)' : ''}`);
   } else {
     d.say(`${d.name} was not running`);
@@ -305,6 +316,7 @@ async function stop(d) {
     return { ok: false, status: 'port-held', message: `port ${d.port} is in use by another program, not by ${d.name}; ${describeOther(r.probe)}` };
   }
   const how = await stopProcess(d, r.health.pid);
+  if (how === 'unverified') return { ok: false, status: 'unverified', message: unverifiedMessage(d, r.health.pid) };
   return {
     ok: true, status: how, pid: r.health.pid,
     message: `${d.name} (pid ${r.health.pid}, version ${r.health.version}) ${how === 'graceful' ? 'stopped gracefully' : 'did not shut down on request and was killed'}`,

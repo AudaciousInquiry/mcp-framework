@@ -13,6 +13,17 @@ created:
     prompt:/claude-code/d670cca5-e0f3-47c9-b239-7d358eabbeb6/~80990185-d187-4a21-8126-b18a46afb811
   summary: http-mcp-server spec for mcp-framework
 updated:
+  - date: '2026-11-24T15:00:08.917Z'
+    user: boonek
+    agent:
+      name: claude-code
+      version: unknown
+    llm:
+      name: claude-sonnet-5-5
+      version: '5.5'
+    prompt_uri: >-
+      prompt:/claude-code/d670cca5-e0f3-47c9-b239-7d358eabbeb6/~3d33f0d5-21dc-4cb4-a45b-87cd381b62aa
+    summary: Shutdown route needs a bearer token (user proposal)
   - date: '2026-11-23T22:12:31.553Z'
     user: boonek
     agent:
@@ -242,6 +253,25 @@ The server SHALL reject a request body larger than a limit with status 413 befor
 #### Scenario: Limit overridden by the MCP
 - **WHEN** the MCP sets `maxBodyBytes` to a different value
 - **THEN** that value replaces the 1 MB default
+
+### Requirement: The shutdown route needs a bearer token
+
+At start the server SHALL make a random token and store it in its process id file. A request to `POST /shutdown`
+SHALL be refused with status 401 unless its `Authorization` header is `Bearer <token>` with that token, so only a
+local client that can read the file can stop the server. The token SHALL be compared in constant time and SHALL be
+new for every start.
+
+#### Scenario: No token or a wrong token
+- **WHEN** `POST /shutdown` carries no `Authorization` header, a different token, or another scheme
+- **THEN** the response is 401, nothing is stopped, and the server keeps running
+
+#### Scenario: Right token
+- **WHEN** `POST /shutdown` carries `Authorization: Bearer <token>` with the token from the process id file
+- **THEN** the server answers 200 and shuts down as usual
+
+#### Scenario: New token per start
+- **WHEN** the server is started again
+- **THEN** its process id file holds a different token
 
 ### Requirement: Tool call observability
 

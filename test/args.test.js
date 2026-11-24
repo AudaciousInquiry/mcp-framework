@@ -206,3 +206,11 @@ test('fractional seconds are truncated to milliseconds, never rolled over', () =
   assert.strictEqual(convertDate('2026-01-01T10:00:00.9996Z', 'date-time', o), '2026-01-01T10:00:00.999Z');
   assert.strictEqual(convertDate('2026-01-01T10:00:00.5Z', 'date-time', o), '2026-01-01T10:00:00.500Z');
 });
+
+test('dotted names cannot reach the prototype', () => {
+  const loose = toJsonSchema({ inputSchema: z.looseObject({}) });
+  for (const name of ['--metadata.__proto__.polluted', '--constructor.prototype.polluted', '--a.prototype.b']) {
+    assert.throws(() => run({}, [name, 'yes'], { schema: loose }), /is not allowed in an argument name/);
+  }
+  assert.strictEqual({}.polluted, undefined);
+});

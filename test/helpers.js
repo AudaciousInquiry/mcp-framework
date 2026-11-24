@@ -10,6 +10,19 @@ const crypto = require('node:crypto');
 
 const FIXTURE = path.join(__dirname, 'fixtures', 'example-mcp');
 
+/** The bearer token a local client reads from the process id file to call /shutdown. */
+function shutdownToken(name = 'example-mcp') {
+  try {
+    return JSON.parse(fs.readFileSync(path.join(os.homedir(), '.mcp', name, 'server.pid'), 'utf8')).token;
+  } catch { return undefined; }
+}
+
+/** POST /shutdown the way a local client does, with the bearer token. */
+function postShutdown(port, name = 'example-mcp') {
+  const token = shutdownToken(name);
+  return request(port, { method: 'POST', path: '/shutdown', headers: token ? { Authorization: `Bearer ${token}` } : {} });
+}
+
 /**
  * Point HOME and USERPROFILE at a fresh temporary folder for the calling test.
  * @returns {{home: string, restore: () => void}}
@@ -130,7 +143,7 @@ async function startServer({ env = {}, args = [], defaults = {}, port, waitHealt
     get stderr() { return stderr; },
     async stop() {
       if (child.exitCode === null && child.signalCode === null) {
-        try { await request(port, { method: 'POST', path: '/shutdown' }); } catch { /* already gone */ }
+        try { await postShutdown(port); } catch { /* already gone */ }
         const timer = setTimeout(() => child.kill('SIGKILL'), 5000);
         await exited;
         clearTimeout(timer);
@@ -210,13 +223,13 @@ async function startDummy(mode, port, version) {
  * answered for a settle period. A server that lost a start race can still be
  * booting when the winner is stopped, and would take the port afterwards.
  */
-async function shutdownAll(port, settleMs = 1500) {
+async function shutdownAll(port, settleMs = 1500, name = 'example-mcp') {
   let quietSince = null;
   const give = Date.now() + 20000;
   while (Date.now() < give) {
     let answered = false;
     try {
-      const r = await Promise.race([request(port, { method: 'POST', path: '/shutdown' }), sleep(1000).then(() => null)]);
+      const r = await Promise.race([postShutdown(port, name), sleep(1000).then(() => null)]);
       answered = r !== null;
     } catch { /* nothing listening */ }
     if (answered) quietSince = null;
@@ -226,4 +239,4 @@ async function shutdownAll(port, settleMs = 1500) {
   }
 }
 
-module.exports = { shutdownAll, writeConfig, fixtureVersion, runLauncher, startDummy, tempHome, freePort, sleep, request, rpc, waitForHealth, startServer, FIXTURE, MCP_HEADERS };
+module.exports = { shutdownAll, shutdownToken, postShutdown, writeConfig, fixtureVersion, runLauncher, startDummy, tempHome, freePort, sleep, request, rpc, waitForHealth, startServer, FIXTURE, MCP_HEADERS };

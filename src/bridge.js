@@ -67,9 +67,31 @@ async function runBridge(c, createContext) {
   await runHook();
 
   const stdio = new StdioServerTransport(c.io.stdin, c.io.stdout);
-  const http = new StreamableHTTPClientTransport(new URL(`http://127.0.0.1:${d.port}/`), {
-    fetch: (url, init) => fetch(url, { ...init, signal: AbortSignal.timeout(timeoutMs) }),
-  });
+  // Each POST is watched on its own, so a broken response stream fails only the request it belongs to.
+  const watchedFetch = async (url, init) => {
+    let id;
+    try {
+      const m = init && init.method === 'POST' && typeof init.body === 'string' ? JSON.parse(init.body) : null;
+      if (m && m.id !== undefined && m.method !== undefined) id = m.id;
+    } catch { /* not a request */ }
+    const response = await fetch(url, { ...init, signal: AbortSignal.timeout(timeoutMs) });
+    if (id === undefined || !response.body) return response;
+    const reader = response.body.getReader();
+    const body = new ReadableStream({
+      async pull(controller) {
+        try {
+          const { done, value } = await reader.read();
+          if (done) controller.close(); else controller.enqueue(value);
+        } catch (err) {
+          streamFailed(id, err);
+          controller.error(err);
+        }
+      },
+      cancel(reason) { return reader.cancel(reason); },
+    });
+    return new Response(body, { status: response.status, statusText: response.statusText, headers: response.headers });
+  };
+  const http = new StreamableHTTPClientTransport(new URL(`http://127.0.0.1:${d.port}/`), { fetch: watchedFetch });
 
   const inflight = new Set();
   let sending = 0;
@@ -123,12 +145,17 @@ async function runBridge(c, createContext) {
     reply(message);
   };
   http.onerror = (err) => {
-    // Failures of a send are handled where it is awaited; this covers streams that break mid-response.
-    if (finished || recovering) return;
-    if (sending > 0 || inflight.size === 0) return;
-    failInflight(isTimeout(err) ? 'The MCP server did not answer in time.' : 'The MCP server connection failed. Retry in a moment.');
-    afterFailure(err).catch((e) => stderr(`${identity.name}: ${e && e.message ? e.message : e}`));
+    // Failures of a send are handled where it is awaited, and failures of a response stream in streamFailed.
+    ctx.log.debug(`transport error: ${err && err.message}`);
   };
+
+  function streamFailed(id, err) {
+    if (finished || !inflight.delete(id)) return;
+    reply(errorResponse(id, isTimeout(err)
+      ? 'The MCP server did not answer in time.'
+      : 'The MCP server connection failed. Retry in a moment.'));
+    afterFailure(err).catch((e) => stderr(`${identity.name}: ${e && e.message ? e.message : e}`));
+  }
 
   stdio.onmessage = async (message) => {
     const isRequest = message && message.id !== undefined && message.method !== undefined;

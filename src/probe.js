@@ -56,7 +56,7 @@ function hasHealthShape(json) {
     json && typeof json === 'object' &&
     json.status === 'ok' &&
     typeof json.version === 'string' &&
-    typeof json.pid === 'number' &&
+    Number.isInteger(json.pid) && json.pid > 1 &&
     typeof json.uptime_seconds === 'number'
   );
 }

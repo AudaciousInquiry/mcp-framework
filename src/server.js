@@ -5,7 +5,8 @@ const http = require('node:http');
 const path = require('node:path');
 const { McpServer } = require('@modelcontextprotocol/sdk/server/mcp.js');
 const { StreamableHTTPServerTransport } = require('@modelcontextprotocol/sdk/server/streamableHttp.js');
-const { loadConfig, pidFile } = require('./config');
+const crypto = require('node:crypto');
+const { loadConfig, pidFile, readPidInfo } = require('./config');
 const log = require('./log');
 const { probeHealth, hasHealthShape } = require('./probe');
 const { readIdentity } = require('./util/identity');
@@ -61,6 +62,7 @@ class McpServerBase {
     this.sockets = new Set();
     this.stopping = false;
     this.bound = false;
+    this.token = crypto.randomBytes(32).toString('hex');
     this.startedAt = Date.now();
   }
 
@@ -203,15 +205,15 @@ class McpServerBase {
   removeStalePidFile() {
     const file = pidFile(this.identity.name);
     try {
-      const pid = Number(fs.readFileSync(file, 'utf8').trim());
-      if (!Number.isInteger(pid) || !processAlive(pid)) fs.rmSync(file, { force: true });
+      const info = readPidInfo(this.identity.name);
+      if (!info || !processAlive(info.pid)) fs.rmSync(file, { force: true });
     } catch { /* no file */ }
   }
 
   afterBind() {
     this.bound = true;
     try {
-      fs.writeFileSync(pidFile(this.identity.name), String(process.pid));
+      fs.writeFileSync(pidFile(this.identity.name), JSON.stringify({ pid: process.pid, token: this.token }), { mode: 0o600 });
     } catch (err) {
       this.log.error(`cannot write the process id file: ${err.message}`);
     }
@@ -312,6 +314,15 @@ class McpServerBase {
     this.sendJson(res, 500, { error: err && err.message ? err.message : String(err) });
   }
 
+  /** The bearer token in the Authorization header must equal this server's own token. */
+  shutdownAuthorized(req) {
+    const m = /^Bearer (\S+)$/.exec(req.headers.authorization || '');
+    if (!m) return false;
+    const given = Buffer.from(m[1]);
+    const want = Buffer.from(this.token);
+    return given.length === want.length && crypto.timingSafeEqual(given, want);
+  }
+
   allowedHost(host) {
     if (!host) return false;
     const port = this.config.port;
@@ -333,6 +344,10 @@ class McpServerBase {
     if (route === '/health' && req.method === 'GET') {
       this.sendJson(res, 200, this.healthBody());
     } else if (route === '/shutdown' && req.method === 'POST') {
+      if (!this.shutdownAuthorized(req)) {
+        this.sendJson(res, 401, { error: 'shutdown needs the bearer token in the process id file' }, { 'WWW-Authenticate': 'Bearer' });
+        return;
+      }
       res.on('finish', () => { this.stop(0, 'shutdown request'); });
       this.sendJson(res, 200, { status: 'shutting_down' }, { Connection: 'close' });
     } else if (route === '/') {

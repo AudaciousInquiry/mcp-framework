@@ -1,6 +1,17 @@
 ---
 schema_version: '1.0'
 updated:
+  - date: '2026-11-24T15:00:25.248Z'
+    user: boonek
+    agent:
+      name: claude-code
+      version: unknown
+    llm:
+      name: claude-sonnet-5-5
+      version: '5.5'
+    prompt_uri: >-
+      prompt:/claude-code/d670cca5-e0f3-47c9-b239-7d358eabbeb6/~3d33f0d5-21dc-4cb4-a45b-87cd381b62aa
+    summary: 'README: bearer token for /shutdown'
   - date: '2026-11-24T07:49:16.334Z'
     user: boonek
     agent:
@@ -245,11 +256,16 @@ a client can continue after a restart without a new handshake. State that must o
 context or in your own storage.
 
 **Routes.** `POST /` carries MCP, `GET /health` returns `status`, `version`, `pid` and `uptime_seconds`, and
-`POST /shutdown` starts a graceful stop. Any other route is 404, and `GET` or `DELETE` on `/` is 405.
+`POST /shutdown` (with the bearer token) starts a graceful stop. Any other route is 404, and `GET` or `DELETE` on `/` is 405.
 
 **Who may call.** The server binds to 127.0.0.1 only. It refuses with 403 any request carrying an `Origin`
 header and any request whose `Host` is not `127.0.0.1`, `localhost` or `[::1]` on its own port, so a web page
 cannot reach it. It sends no CORS headers.
+
+**Stopping.** `POST /shutdown` needs `Authorization: Bearer <token>`. The server makes a random token at every start and
+writes it, with its process id, to `server.pid` (`{"pid": 1234, "token": "..."}`, readable by you only where the
+system allows). Any local client that can read the file can stop the server; the launcher's `--stop` does so. A
+request without the right token gets 401 and nothing stops.
 
 **Request size.** A body over `maxBodyBytes` (1 MB by default) gets 413 and the message names the setting.
 

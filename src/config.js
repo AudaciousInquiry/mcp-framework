@@ -160,4 +160,23 @@ function loadConfig(options) {
   return config;
 }
 
-module.exports = { dataDir, configFile, logsDir, pidFile, ensureDataDir, loadConfig };
+/**
+ * Read the process id file: the server's pid and the bearer token `/shutdown` requires.
+ * An older plain-number file is read as a pid with no token.
+ * @param {string} name
+ * @returns {{pid: number, token: string|null}|null}
+ */
+function readPidInfo(name) {
+  let text;
+  try { text = fs.readFileSync(pidFile(name), 'utf8').trim(); } catch { return null; }
+  let pid;
+  let token = null;
+  try {
+    const parsed = JSON.parse(text);
+    if (parsed && typeof parsed === 'object') { pid = parsed.pid; token = typeof parsed.token === 'string' ? parsed.token : null; }
+    else pid = parsed;
+  } catch { return null; }
+  return Number.isInteger(pid) && pid > 0 ? { pid, token } : null;
+}
+
+module.exports = { dataDir, configFile, logsDir, pidFile, ensureDataDir, loadConfig, readPidInfo };

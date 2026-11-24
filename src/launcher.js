@@ -137,6 +137,7 @@ async function launch(definition, argv, io, launcherDir, script = 'index.js', cw
       serverPath: def.serverPath,
       nodeArgs: def.nodeArgs,
       startupTimeoutMs: config.startupTimeoutMs !== undefined ? config.startupTimeoutMs : def.startupTimeoutMs,
+      drainMs: config.drainMs,
       serverDefaults: def.defaults,
       say: (m) => io.out(m),
       timeouts: def.timeouts,

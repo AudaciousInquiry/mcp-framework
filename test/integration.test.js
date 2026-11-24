@@ -42,7 +42,7 @@ test('an MCP built from the README and an installed tarball works over HTTP, ove
   const port = await freePort();
   writeConfig('my-mcp', { port });
   t.after(async () => {
-    await shutdownAll(port);
+    await shutdownAll(port, 1500, 'my-mcp');
     h.restore();
     fs.rmSync(work, { recursive: true, force: true });
   });

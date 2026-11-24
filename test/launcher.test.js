@@ -149,10 +149,12 @@ test('stop: graceful, and the port is free afterwards so an immediate start work
   assert.strictEqual(again.code, 0, again.stderr);
 });
 
-test('stop: a server that ignores /shutdown is killed', async (t) => {
+test('stop: a server that ignores /shutdown and is named by the process id file is killed', async (t) => {
   const { port } = await setup(t);
   const stubborn = await startDummy('stubborn', port);
   t.after(stubborn.stop);
+  config.ensureDataDir(NAME);
+  fs.writeFileSync(config.pidFile(NAME), String(stubborn.child.pid));
   const r = await runLauncher(INDEX, ['--stop']);
   assert.strictEqual(r.code, 0, r.stderr);
   assert.match(r.stdout, /did not shut down on request and was killed/);
@@ -293,4 +295,43 @@ test('a leftover process id file naming a live, unrelated process does not fail 
   assert.strictEqual(r.code, 0, r.stderr);
   assert.notStrictEqual(fs.readFileSync(config.pidFile(NAME), 'utf8'), String(process.pid));
   assert.strictEqual((await request(port, { path: '/health' })).status, 200);
+});
+
+test('stop: a process that ignores /shutdown but is not named by the process id file is not killed', async (t) => {
+  const { port } = await setup(t);
+  const stubborn = await startDummy('stubborn', port);
+  t.after(stubborn.stop);
+  const r = await runLauncher(INDEX, ['--stop']);
+  assert.notStrictEqual(r.code, 0);
+  assert.match(r.stderr, /process id file does not name it, so it was not killed/);
+  assert.strictEqual(stubborn.child.exitCode, null, 'still running');
+});
+
+test('a /health answer with an impossible pid is treated as another program, never signalled', async (t) => {
+  const { port } = await setup(t);
+  const http = require('node:http');
+  const srv = http.createServer((q, s) => { s.setHeader('Content-Type', 'application/json'); s.end(JSON.stringify({ status: 'ok', version: '1.0.0', pid: -1, uptime_seconds: 1 })); });
+  await new Promise((r) => srv.listen(port, '127.0.0.1', r));
+  t.after(() => srv.close());
+  const r = await runLauncher(INDEX, ['--stop']);
+  assert.notStrictEqual(r.code, 0);
+  assert.match(r.stderr, /in use by another program/);
+});
+
+test('the stop sends the token only to the process the process id file names', async (t) => {
+  const { port } = await setup(t);
+  const http = require('node:http');
+  const seen = [];
+  const srv = http.createServer((q, s) => {
+    seen.push(q.headers.authorization || null);
+    s.setHeader('Content-Type', 'application/json');
+    s.end(JSON.stringify({ status: 'ok', version: '1.0.0', pid: 4321, uptime_seconds: 1 }));
+  });
+  await new Promise((r) => srv.listen(port, '127.0.0.1', r));
+  t.after(() => srv.close());
+  config.ensureDataDir(NAME);
+  fs.writeFileSync(config.pidFile(NAME), JSON.stringify({ pid: 99999, token: 'secret-token' }));
+  const r = await runLauncher(INDEX, ['--stop']);
+  assert.notStrictEqual(r.code, 0);
+  assert.ok(seen.every((h) => h === null), 'the token was not sent to a listener the file does not name');
 });
